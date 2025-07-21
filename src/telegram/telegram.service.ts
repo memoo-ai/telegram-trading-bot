@@ -1,4 +1,5 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
+import { TELEGRAM_BOT_COMMANDS, TelegramKey } from 'src/common/constants/telegram';
 import { Telegraf, Markup, Scenes, session } from 'telegraf';
 
 function escapeMarkdownV2(text: string): string {
@@ -21,7 +22,7 @@ export class TelegramService implements OnModuleInit {
     this.bot = new Telegraf<MyContext>(token);
 
     // --- 集成 Scenes ---
-    const createWalletScene = new Scenes.BaseScene<MyContext>('create_wallet');
+    const createWalletScene = new Scenes.BaseScene<MyContext>(TelegramKey.CreateWallet);
     createWalletScene.enter((ctx) => ctx.reply('Please enter a label for your new wallet:'));
     createWalletScene.on('text', async (ctx) => {
       const walletName = ctx.message.text.trim();
@@ -107,7 +108,7 @@ Security Tips
     ));
 
     // 监听 /wallets 指令（新消息）
-    this.bot.command('wallets', async (ctx) => {
+    this.bot.command(TelegramKey.Wallets, async (ctx) => {
       const userId = ctx.from?.id;
       if (!userId) return;
       const walletExists = await this.hasWallet(userId);
@@ -118,13 +119,13 @@ Security Tips
         await ctx.reply('You already have a wallet!');
       }
     });
-    // 监听 /wallets 指令（新消息）
-    this.bot.command('settings', async (ctx) => {
+    // 监听 /settings 指令（新消息）
+    this.bot.command(TelegramKey.Settings, async (ctx) => {
       await this.sendSettingsMessage(ctx, false);
     });
 
     // 监听 wallets action（编辑消息）
-    this.bot.action('wallets', async (ctx) => {
+    this.bot.action(TelegramKey.Wallets, async (ctx) => {
       const userId = ctx.from?.id;
       if (!userId) return;
       const walletExists = await this.hasWallet(userId);
@@ -136,21 +137,21 @@ Security Tips
       await ctx.answerCbQuery();
     });
 
-    this.bot.action('security_tips', async (ctx) => {
+    this.bot.action(TelegramKey.SecurityTips, async (ctx) => {
       await this.sendSecurityTips(ctx, true);
       await ctx.answerCbQuery();
     });
-    this.bot.action('import_wallet', async (ctx) => {
+    this.bot.action(TelegramKey.ImportWallet, async (ctx) => {
       await this.sendImportWalletMessage(ctx, true);
       await ctx.answerCbQuery();
     });
-    this.bot.action('create_wallet', async (ctx) => {
-      await ctx.scene.enter('create_wallet');
+    this.bot.action(TelegramKey.CreateWallet, async (ctx) => {
+      await ctx.scene.enter(TelegramKey.CreateWallet);
       await ctx.answerCbQuery();
     });
 
     // 示例：需要钱包的指令
-    this.bot.command('positions', async (ctx) => {
+    this.bot.command(TelegramKey.Positions, async (ctx) => {
       await this.checkWalletOrTip(ctx, async () => {
         await ctx.reply('Here are your positions...');
       });
@@ -160,21 +161,7 @@ Security Tips
 
 
   private async setBotMenu() {
-    await this.bot.telegram.setMyCommands([
-      { command: 'start', description: 'Main Menu for quick actions' },
-      { command: 'feed', description: 'Manage your feed' },
-      { command: 'autotrade', description: 'Configure auto trading' },
-      { command: 'wallets', description: 'Manage wallets (create, import, withdraw)' },
-      { command: 'positions', description: 'View token positions' },
-      { command: 'buy', description: 'Buy a token' },
-      { command: 'sell', description: 'Sell a token' },
-      { command: 'withdraw', description: 'Withdraw SOL from default wallet' },
-      { command: 'filters', description: 'Configure trading filters' },
-      { command: 'settings', description: 'Configure manual and auto trade settings' },
-      { command: 'help', description: 'Show available commands and usage' },
-      // You can continue to add your custom commands here
-      // { command: 'yourcmd', description: 'Your custom command description' },
-    ]);
+    await this.bot.telegram.setMyCommands(TELEGRAM_BOT_COMMANDS);
   }
 
 
@@ -189,12 +176,12 @@ Security Tips
     const text = `💼 No wallets found. Use the buttons below to create or import a wallet.`;
     const keyboard = Markup.inlineKeyboard([
       [
-        Markup.button.callback('➕ Create Wallet', 'create_wallet'),
-        Markup.button.callback('👛 Import Wallet', 'import_wallet'),
+        Markup.button.callback('➕ Create Wallet', TelegramKey.CreateWallet),
+        Markup.button.callback('👛 Import Wallet', TelegramKey.ImportWallet),
       ],
       [
-        Markup.button.callback('🔐 Security Tips', 'security_tips'),
-        Markup.button.callback('🏠 Main Menu', 'main_menu'),
+        Markup.button.callback('🔐 Security Tips', TelegramKey.SecurityTips),
+        Markup.button.callback('🏠 Main Menu', TelegramKey.MainMenu),
       ],
     ]);
     if (edit && 'editMessageText' in ctx) {
@@ -220,7 +207,7 @@ Security Tips
       `6. Be cautious of phishing attempts\n` +
       `7. Use hardware wallets for large holdings`;
     const keyboard = Markup.inlineKeyboard([
-      [Markup.button.callback('<< Back to Wallets', 'wallets')],
+      [Markup.button.callback('<< Back to Wallets', TelegramKey.Wallets)],
     ]);
     if (edit && 'editMessageText' in ctx) {
       await ctx.editMessageText(text, keyboard);
@@ -237,7 +224,7 @@ Security Tips
       `Examples: "Trading Wallet", "Main Wallet", "DeFi Wallet"\n\n` +
       `✏️ Send your wallet name in the next message`;
     const keyboard = Markup.inlineKeyboard([
-      [Markup.button.callback('<< Back', 'wallets')],
+      [Markup.button.callback('<< Back', TelegramKey.Wallets)],
     ]);
     if (edit && 'editMessageText' in ctx) {
       await ctx.editMessageText(text, keyboard);
@@ -254,7 +241,7 @@ Security Tips
       `Example: "My Trading Wallet"\n`;
     
     const keyboard = Markup.inlineKeyboard([
-      [Markup.button.callback('<< Back', 'wallets')],
+      [Markup.button.callback('<< Back', TelegramKey.Wallets)],
     ]);
     if (edit && 'editMessageText' in ctx) {
       await ctx.editMessageText(text, keyboard);
@@ -273,11 +260,11 @@ Security Tips
       `• Auto Trade: Configure automated trading parameters`;
     const keyboard = Markup.inlineKeyboard([
       [
-        Markup.button.callback('Manual Trade', 'manual_trade'),
-        Markup.button.callback('Auto Trade', 'auto_trade'),
+        Markup.button.callback('Manual Trade', TelegramKey.ManualTrade),
+        Markup.button.callback('Auto Trade', TelegramKey.AutoTradeAction),
       ],
       [
-        Markup.button.callback('Main menu', 'main_menu'),
+        Markup.button.callback('Main menu', TelegramKey.MainMenu),
       ],
     ]);
 
