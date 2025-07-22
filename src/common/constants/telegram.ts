@@ -57,11 +57,6 @@ export enum TelegramScenes {
   CreateWallet = 'create_wallet'
 } 
 
-
-export enum TelegramCommand {
-  CreateWallet = 'create_wallet'
-}
-
-export enum TelegramAction {
-  CreateWallet = 'create_wallet'
-}
+// export const USER_CHECK_INTERVAL = 30 * 60 * 1000;
+export const USER_CHECK_INTERVAL = 30 * 60 * 1000;
+export const WALLET_PRIVATE_KEY_DELETE_DELAY = 3 * 60 * 1000; // 3分钟
