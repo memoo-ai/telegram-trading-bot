@@ -24,6 +24,9 @@ export class User {
   @Column()
   inviteCode: string;
 
+  @Column()
+  referralCode: string;
+
   @OneToMany(() => Wallet, wallet => wallet.user)
   wallets: Wallet[];
 } 

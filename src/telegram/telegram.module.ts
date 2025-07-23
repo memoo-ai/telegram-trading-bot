@@ -7,4 +7,4 @@ import { WalletModule } from 'src/wallet/wallet.module';
   imports: [UserModule, WalletModule],
   providers: [TelegramService],
 })
-export class TelegramModule {} 
+export class TelegramModule { } 

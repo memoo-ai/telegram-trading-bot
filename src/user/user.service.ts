@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class UserService {
@@ -20,8 +21,9 @@ export class UserService {
   }): Promise<User> {
     let user = await this.userRepo.findOne({ where: { tgId: userInfo.tgId } });
     if (!user) {
-      console.log("no user",userInfo )
-      user = this.userRepo.create(userInfo);
+      // 生成唯一邀请码
+      let inviteCode = await this.generateUniqueInviteCode();
+      user = this.userRepo.create({ ...userInfo, inviteCode });
       await this.userRepo.save(user);
       console.log("create user", userInfo)
     } else {
@@ -32,6 +34,18 @@ export class UserService {
       await this.userRepo.save(user);
     }
     return user;
+  }
+
+  // 生成唯一邀请码，规则：大写字母+数字，长度8位
+  private async generateUniqueInviteCode(): Promise<string> {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = '';
+    let exists = true;
+    while (exists) {
+      code = Array.from({ length: 8 }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
+      exists = !!(await this.userRepo.findOne({ where: { inviteCode: code } }));
+    }
+    return code;
   }
 
   // 通过 tgId 查找用户
