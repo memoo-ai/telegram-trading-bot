@@ -29,5 +29,5 @@ dist-ssr
 docs
 *.zip
 /stats.html
-*.env.*
-*.env
+# *.env.development
+# *.env.production
