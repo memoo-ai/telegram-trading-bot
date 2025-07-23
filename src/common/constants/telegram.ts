@@ -18,7 +18,7 @@ export enum TelegramKey {
   SecurityTips = 'security_tips',
   MainMenu = 'main_menu',
   Wallets = 'wallets',
-  Settings = 'wallets',
+  Settings = 'settings',
   AutoTradeAction = 'auto_trade',
   ManualTrade = 'manual_trade',
   // ... 其他 key
