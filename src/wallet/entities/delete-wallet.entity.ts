@@ -1,15 +1,14 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, Unique } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 
-@Entity()
+@Entity('delete_wallet')
 @Unique(['user', 'walletAddress']) 
-export class Wallet {
+export class DeleteWallet {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  // @Index()
-  // @Column()
-  // tgId: number;
+  @Column()
+  originalWalletId: string;
 
   @Column()
   walletName: string;
@@ -23,8 +22,11 @@ export class Wallet {
   @Column()
   isDefaultWallet: boolean;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP', onUpdate: 'CURRENT_TIMESTAMP' })
-  updatedAt: Date; // 这里应该是时间戳
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  deletedAt: Date; // 删除时间
+
+  @Column({ type: 'timestamp' })
+  originalCreatedAt: Date; // 原始创建时间
 
   @Column()
   balance: number;

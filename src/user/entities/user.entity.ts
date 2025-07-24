@@ -27,6 +27,12 @@ export class User {
   @Column()
   referralCode: string;
 
+  @Column({ default: false })
+  agreedToTerms: boolean; // TODO: add enum
+
+  @Column({ default: 0 })
+  totalInvites: number;
+
   @OneToMany(() => Wallet, wallet => wallet.user)
   wallets: Wallet[];
 } 

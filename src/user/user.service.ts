@@ -18,6 +18,7 @@ export class UserService {
     firstName?: string;
     lastName?: string;
     isBot?: boolean;
+    referralCode?: string
   }): Promise<User> {
     let user = await this.userRepo.findOne({ where: { tgId: userInfo.tgId } });
     if (!user) {
@@ -51,5 +52,13 @@ export class UserService {
   // 通过 tgId 查找用户
   async findByTgId(tgId: number): Promise<User | undefined> {
     return this.userRepo.findOne({ where: { tgId } });
+  }
+
+  async setAgreedToTerms(tgId: number, agreed: boolean) {
+    const user = await this.userRepo.findOne({ where: { tgId } });
+    if (user) {
+      user.agreedToTerms = agreed;
+      await this.userRepo.save(user);
+    }
   }
 }

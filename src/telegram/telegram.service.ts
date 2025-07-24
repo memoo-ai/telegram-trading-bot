@@ -1,19 +1,22 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { TELEGRAM_BOT_COMMANDS, TelegramKey, USER_CHECK_INTERVAL, WALLET_PRIVATE_KEY_DELETE_DELAY } from 'src/common/constants/telegram';
+import { TELEGRAM_BOT_COMMANDS, TelegramKey, TelegramScenes } from 'src/common/constants/telegram';
+import { HELP_MESSAGE } from 'src/common/constants/messages';
+import { createWalletScene, setCreateWalletSceneServices } from './scenes/create-wallet';
+import { termsScene, setTermsSceneServices } from './scenes/terms';
+import { editWalletScene, setEditWalletSceneServices } from './scenes/edit-wallet';
 import { Telegraf, Markup, Scenes, session } from 'telegraf';
 import { UserService } from '../user/user.service';
 import { Wallet } from 'src/wallet/entities/wallet.entity';
 import { WalletService } from 'src/wallet/wallet.service';
-import { createSolanaWallet } from 'src/utils/wallet';
 import { platformName } from 'src/common/constants';
 import { ConfigService } from '@nestjs/config';
 import { ENV } from 'src/common/config/env';
+import { EditWalletSceneState, MyContext } from './type';
+import { WalletsCommandHandler } from './commands/wallets.command.handler';
+import { SettingsCommandHandler } from './commands/settings.command.handler';
+import { WalletUtils } from 'src/utils/wallet';
+import { USER_CHECK_INTERVAL } from 'src/common/constants/time.constants';
 
-function escapeMarkdownV2(text: string): string {
-  return text.replace(/([_\*\[\]()~`>#+\-=|{}.!\\])/g, '\\$1');
-}
-
-type MyContext = Scenes.SceneContext;
 
 @Injectable()
 export class TelegramService implements OnModuleInit {
@@ -21,8 +24,15 @@ export class TelegramService implements OnModuleInit {
   constructor(
     private readonly userService: UserService,
     private readonly walletService: WalletService,
+    private readonly walletUtils: WalletUtils,
     private readonly config: ConfigService,
+    private readonly walletsCommandHandler: WalletsCommandHandler,
+    private readonly settingsCommandHandler: SettingsCommandHandler,
   ) { }
+
+
+  private userCheckCache = new Map<number, number>();
+  private readonly userCheckInterval = USER_CHECK_INTERVAL;
 
 
   onModuleInit() {
@@ -33,51 +43,13 @@ export class TelegramService implements OnModuleInit {
     }
     this.bot = new Telegraf<MyContext>(token);
 
-    // --- 集成 Scenes ---
-    const createWalletScene = new Scenes.BaseScene<MyContext>(TelegramKey.CreateWallet);
-    createWalletScene.enter((ctx) => ctx.reply('Please enter a label for your new wallet:'));
-    createWalletScene.on('text', async (ctx) => {
-      const walletName = ctx.message.text.trim();
-      const tgId = ctx.from.id;
-      // await ctx.reply(`✅ Wallet name received: ${walletName}`);
-      await ctx.scene.leave();
-      const { publicKey, secretKey } = createSolanaWallet();
-      const user = await this.userService.findByTgId(tgId);
-      const existingWallets = await this.walletService.findWalletsByUserId(user.id);
-      const isDefaultWallet = existingWallets.length === 0;
-      await this.walletService.createWallet(
-        user,
-        walletName,
-        isDefaultWallet,
-        publicKey,
-        secretKey
-      );
-      // 发送私钥安全提示，并5分钟后删除
-      const sent = await ctx.reply(
-        `🔐 IMPORTANT: SAVE THIS PRIVATE KEY NOW\n\n` +
-        `This is the only time you will see this private key. The bot cannot recover or resend it.\n\n` +
-        `Private Key: ${secretKey}\n\n` +
-        `⚠️ Security Warnings:\n` +
-        `• Save this key in a secure location\n` +
-        `• Never share it with anyone\n` +
-        `• The bot will delete this message in 5 minutes\n` +
-        `• Delete this message after saving the key`
-      );
-      // 删除用户输入的钱包名消息和私钥提示消息
-      setTimeout(async () => {
-        try {
-          await ctx.deleteMessage(ctx.message.message_id); // 删除用户输入的钱包名
-          // await ctx.deleteMessage(sent.message_id); // 删除私钥提示
-        } catch (e) { }
-      }, 500);
-      // 删除用户输入的钱包名消息和私钥提示消息
-      setTimeout(async () => {
-        try {
-          await ctx.deleteMessage(sent.message_id); // 删除私钥提示
-        } catch (e) { }
-      }, WALLET_PRIVATE_KEY_DELETE_DELAY);
-    });
-    const stage = new Scenes.Stage<MyContext>([createWalletScene]);
+    // 注入服务到条款场景
+    setTermsSceneServices(this.userService, this.bot);
+    // 注入服务到场景
+    setCreateWalletSceneServices(this.userService, this.walletService, this.walletUtils);
+    // 注入编辑钱包场景服务
+    setEditWalletSceneServices(this.userService, this.walletService, this.walletsCommandHandler);
+    const stage = new Scenes.Stage<MyContext>([createWalletScene, termsScene, editWalletScene]);
     this.bot.use(session());
     this.bot.use(stage.middleware());
     // --- End Scenes ---
@@ -85,7 +57,7 @@ export class TelegramService implements OnModuleInit {
     this.setupListeners();
     this.setBotMenu();
     this.bot.launch();
-    console.log('Telegraf bot is running', token);
+    // console.log('Telegraf bot is running', token);
   }
 
   // 通用检查钱包方法
@@ -102,46 +74,63 @@ export class TelegramService implements OnModuleInit {
 
   private setupListeners() {
     // 统一加一层中间件
+    // this.bot.use(async (ctx, next) => {
+    //   await this.checkUserIfNeeded(ctx);
+    //   await next();
+    // });
     this.bot.use(async (ctx, next) => {
-      await this.checkUserIfNeeded(ctx);
+      const tgId = ctx.from?.id;
+      if (!tgId) return;
+      const user = await this.userService.findByTgId(tgId);
+      if (!user || !user.agreedToTerms) {
+        // 保存邀请码（如果有）
+        if (ctx.message && 'text' in ctx.message && ctx.message.text.startsWith('/start')) {
+          const args = ctx.message.text.split(' ').slice(1);
+          ctx.session = ctx.session || {};
+          ctx.session.inviteCode = args[0] || null;
+        }
+        await ctx.scene.enter(TelegramScenes.Terms);
+        return;
+      }
       await next();
     });
 
     // this.bot.start((ctx) => ctx.reply('Welcome to the Telegram Bot!'));
     this.bot.start(async (ctx) => {
-
       const text = ctx.message.text;
       const args = text.split(' ').slice(1); // ["xxxx"]
-      const startParam = args[0] || null;
-      // 现在 startParam 就是启动参数
-      console.log(`启动参数: ${startParam}`)
+      const inviteCode = args[0] || null;
       const tgId = ctx.from?.id;
       if (!tgId) return;
       const user = await this.userService.findByTgId(tgId);
-      // const user = null;
+      // 未注册或未同意协议，进入隐私协议场景
+      if (!user || !user.agreedToTerms) {
+        ctx.session = ctx.session || {};
+        ctx.session.inviteCode = inviteCode;
+        await ctx.scene.enter(TelegramScenes.Terms);
+        return;
+      }
+      // 已注册且同意协议，正常进入主菜单
       let msg = 'No wallet found. Use /wallets to create one.';
       let walletInfo = '';
-      if (user) {
-        const defaultWallet = await this.walletService.findDefaultWalletByUserId(user.id);
-        if (defaultWallet) {
-          walletInfo =
-            `💰 Wallet: ${defaultWallet.walletName}\n` +
-            `🔑 Public Key: ${defaultWallet.walletAddress} <a href="https://solscan.io/account/${defaultWallet.walletAddress}" target="_blank">( E )</a>\n` +
-            `💸 Balance: 0.0000 SOL ($0.00)\n`;
-        }
-        msg =
-          `👋 Welcome to ${platformName}\n` +
-          `You're now in the command center for trading new launches on Solana.\n\n` +
-          walletInfo + '\n' +
-          `🔹 Start Feed - Launch a real-time stream of new PumpSwap token listings, based on your Feed Filters.\n` +
-          `🔹 Auto Trade - The bot automatically executes trades on tokens that appear in your custom feed, using your preset trade settings.\n` +
-          `🔹 Feed Filters - Control which types of launches appear in your feed.\n` +
-          `🔹 Trade Settings - Adjust your trading parameters for both manual and auto-trade strategies.\n\n` +
-          `👥 Referral Link - https://t.me/${this.config.get(ENV.TELEGRAM_BOT_NAME)}?start=${user.inviteCode} (Tap to copy)\n` +
-          `👥 Total Invites - 0\n\n` +
-          `📖 For advanced guidance and strategies, check out our GitBook.`;
+      const defaultWallet = await this.walletService.findDefaultWalletByUserId(user.id);
+      if (defaultWallet) {
+        walletInfo =
+          `💰 Wallet: ${defaultWallet.walletName}\n` +
+          `🔑 Public Key: ${defaultWallet.walletAddress} <a href="https://solscan.io/account/${defaultWallet.walletAddress}" target="_blank">( E )</a>\n` +
+          `💸 Balance: 0.0000 SOL ($0.00)\n`;
       }
-
+      msg =
+        `👋 Welcome to ${platformName}\n` +
+        `You're now in the command center for trading new launches on Solana.\n\n` +
+        walletInfo + '\n' +
+        `🔹 Start Feed - Launch a real-time stream of new PumpSwap token listings, based on your Feed Filters.\n` +
+        `🔹 Auto Trade - The bot automatically executes trades on tokens that appear in your custom feed, using your preset trade settings.\n` +
+        `🔹 Feed Filters - Control which types of launches appear in your feed.\n` +
+        `🔹 Trade Settings - Adjust your trading parameters for both manual and auto-trade strategies.\n\n` +
+        `👥 Referral Link - https://t.me/${this.config.get(ENV.TELEGRAM_BOT_NAME)}?start=${user.inviteCode} (Tap to copy)\n` +
+        `👥 Total Invites - ${user.totalInvites}\n\n` +
+        `📖 For advanced guidance and strategies, check out our GitBook.`;
       const keyboard = Markup.inlineKeyboard([
         [
           Markup.button.callback('➕ StartFeed', TelegramKey.Feed),
@@ -160,97 +149,22 @@ export class TelegramService implements OnModuleInit {
           Markup.button.callback('🏠 Main Menu', TelegramKey.MainMenu),
         ],
       ]);
-     
-
       await ctx.reply(msg, { parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: keyboard.reply_markup });
     });
-    this.bot.help((ctx) => ctx.replyWithMarkdownV2(
-      escapeMarkdownV2(`
-        🤖 Bot Commands
+    this.bot.help((ctx) => ctx.replyWithMarkdownV2(HELP_MESSAGE));
 
-Trading Commands
-/buy - Buy a token with SOL
-/sell - Sell a token for SOL
-/stats <pool_address> - View detailed pool statistics
-
-Wallet Management
-/wallets - Manage your wallets
-• Create new wallets
-• Import existing wallets
-• Set default wallet
-• View wallet balances
-/withdraw - Withdraw SOL from default wallet
-
-Portfolio Management
-/positions - View your token holdings
-• Token balances and USD values
-• One-click selling options
-• Token details and links
-/unhide - Unhide tokens you previously hid
-
-Automated Trading
-/autoTrade - Configure auto trading
-• Enable/disable automation
-• Set buy/sell parameters
-• Configure risk management
-• Set priority fees
-
-Configuration
-/filters - Configure trading filters
-• Set volume/marketCap requirements
-• Configure holder requirements
-• Set pool duration limits
-/settings - Configure trade settings
-• Set buy/sell amounts
-• Configure slippage tolerance
-• Set priority fees
-• Enable/disable protection
-
-/start - Quick actions menu
-/help - Show this command list
-
-Security Tips
-• Never share your private keys
-• Store backup keys securely
-• Use small amounts for testing
-• Monitor your transactions regularly
-`)
-    ));
+    // Buy 指令
+    this.bot.command(TelegramKey.Buy, async (ctx) => {
+      await this.sendBuyMessage(ctx, false);
+    });
 
     // 监听 /wallets 指令（新消息）
     this.bot.command(TelegramKey.Wallets, async (ctx) => {
-      const userId = ctx.from?.id;
-      if (!userId) return;
-      const wallets = await this.getUserWallets(userId);
-      let msg = '';
-      if (wallets.length === 0) {
-        msg = '💼 You have no wallets yet.';
-      } else {
-        msg = '💼 Your Wallets\n\n';
-        for (const w of wallets) {
-          const isDefault = w.isDefaultWallet;
-          msg += `${isDefault ? '✅' : '◽️'} ${w.walletName}\n`;
-          msg += `Public Key: ${w.walletAddress} <a href="https://solscan.io/account/${w.walletAddress}" target="_blank">( E )</a> \n`;
-          msg += `Balance: 0.0000 SOL ($0.00)\n\n`;
-        }
-        msg += '✅ - Default wallet\n◽️ - Additional wallet';
-      }
-      // 统一按钮
-      const keyboard = Markup.inlineKeyboard([
-        [
-          Markup.button.callback('➕ Create Wallet', TelegramKey.CreateWallet),
-          Markup.button.callback('👛 Import Wallet', TelegramKey.ImportWallet),
-        ],
-        [
-          Markup.button.callback('🔐 Security Tips', TelegramKey.SecurityTips),
-          Markup.button.callback('🏠 Main Menu', TelegramKey.MainMenu),
-        ],
-      ]);
-      await ctx.reply(msg, { parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: keyboard.reply_markup });
+      await this.walletsCommandHandler.handle(ctx);
     });
     // 监听 /settings 指令（新消息）
     this.bot.command(TelegramKey.Settings, async (ctx) => {
-      await this.sendSettingsMessage(ctx, false);
+      await this.settingsCommandHandler.handle(ctx, false);
     });
 
     // 监听 wallets action（编辑消息）
@@ -276,6 +190,13 @@ Security Tips
     });
     this.bot.action(TelegramKey.CreateWallet, async (ctx) => {
       await ctx.scene.enter(TelegramKey.CreateWallet);
+      await ctx.answerCbQuery();
+    });
+
+    // 监听编辑钱包动作
+    this.bot.action(new RegExp(`^${TelegramKey.EditWallet}:(.+)$`), async (ctx) => {
+      const walletId = ctx.match[1];
+      await ctx.scene.enter(TelegramScenes.EditWallet, { walletId });
       await ctx.answerCbQuery();
     });
 
@@ -379,6 +300,9 @@ Security Tips
     }
   }
 
+  private async sendBuyMessage(ctx: MyContext, edit = false) {
+
+  }
 
   // Settings Message
   private async sendSettingsMessage(ctx: MyContext, edit = false) {
@@ -404,8 +328,6 @@ Security Tips
     }
   }
 
-  private userCheckCache = new Map<number, number>();
-  private readonly userCheckInterval = USER_CHECK_INTERVAL;
 
   private async checkUserIfNeeded(ctx: MyContext) {
     const tgId = ctx.from?.id;
