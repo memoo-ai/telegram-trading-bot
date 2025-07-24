@@ -7,6 +7,7 @@ import { WalletService } from 'src/wallet/wallet.service';
 import { Wallet } from 'src/wallet/entities/wallet.entity';
 import { Injectable } from '@nestjs/common';
 import { formatWalletLink } from 'src/utils/wallet';
+import { NO_WALLET_MESSAGE } from 'src/common/constants/messages';
 
 /**
  * 钱包指令处理器
@@ -48,7 +49,7 @@ export class WalletsCommandHandler extends BaseCommandHandler {
       console.log(wallets);
       let msg = '';
       if (wallets.length === 0) {
-        msg = '💼 You have no wallets yet.';
+        msg = NO_WALLET_MESSAGE;
       } else {
         msg = '💼 Your Wallets\n\n';
         for (const w of wallets) {
@@ -88,7 +89,13 @@ export class WalletsCommandHandler extends BaseCommandHandler {
       ]);
 
       const keyboard = Markup.inlineKeyboard(buttons);
-      await ctx.reply(msg, { parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: keyboard.reply_markup });
+
+      if (edit && 'editMessageText' in ctx) {
+        await ctx.editMessageText(msg, { parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: keyboard.reply_markup });
+      } else {
+        await ctx.reply(msg, { parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: keyboard.reply_markup });
+      }
+
     } catch (error) {
       console.error('Error handling wallets command:', error);
       await ctx.reply('❌ An error occurred while processing your request');

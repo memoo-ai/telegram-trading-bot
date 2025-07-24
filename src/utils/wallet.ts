@@ -66,6 +66,5 @@ export function formatExplorerLink(chain: Chain, address: string): string {
  */
 export function formatWalletLink(prefix: string, address: string, chain: Chain = Chain.SOL): string {
   const explorerUrl = formatExplorerLink(chain, address);
-  console.log("explorerUrl", explorerUrl);
   return `${prefix}${address} <a href="${explorerUrl}" target="_blank">( E )</a>`;
 }

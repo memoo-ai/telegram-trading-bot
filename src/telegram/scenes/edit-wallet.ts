@@ -55,7 +55,7 @@ editWalletScene.enter(async (ctx) => {
 
   // 显示编辑菜单
   const keyboard = Markup.inlineKeyboard([
-    [Markup.button.callback(wallet.isDefaultWallet ? `${Emoji.Default} Default Wallet` : `${Emoji.SetDefault} Set as Default`, `${TelegramKey.RenameWallet}`)],
+    [Markup.button.callback(wallet.isDefaultWallet ? `${Emoji.Default} Default Wallet` : `${Emoji.SetDefault} Set as Default`, `${TelegramKey.SetDefaultWallet}`)],
     [Markup.button.callback(`${Emoji.Withdraw} Withdraw SOL`, `${TelegramKey.SetDefaultWallet}:${walletId}`)],
     [Markup.button.callback(`${Emoji.Delete} Remove Wallet`, `${TelegramKey.DeleteWallet}:${walletId}`)],
     [Markup.button.callback(BackText, `${TelegramKey.Back}`)],
@@ -65,9 +65,11 @@ editWalletScene.enter(async (ctx) => {
     parse_mode: 'HTML' as const, // 明确为字面量类型
     reply_markup: keyboard.reply_markup
   };
-  if ('editMessageText' in ctx) {
-    await ctx.editMessageText(walletText, options);
-  } 
+  // if ('editMessageText' in ctx) {
+  //   await ctx.editMessageText(walletText, options);
+  //   return;
+  // }
+  await ctx.reply(walletText, { ...options, link_preview_options: { is_disabled: true } });
 });
 
 // 处理重命名钱包
@@ -80,6 +82,7 @@ editWalletScene.enter(async (ctx) => {
 // 处理设置默认钱包
 editWalletScene.action(new RegExp(`^${TelegramKey.SetDefaultWallet}:(.+)$`), async (ctx) => {
   await ctx.answerCbQuery();
+  console.log("SetDefaultWallet")
   const walletId = ctx.match[1];
   const user = await userService.findByTgId(ctx.from.id);
 

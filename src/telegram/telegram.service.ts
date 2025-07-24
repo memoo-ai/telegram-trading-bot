@@ -111,45 +111,7 @@ export class TelegramService implements OnModuleInit {
         return;
       }
       // 已注册且同意协议，正常进入主菜单
-      let msg = 'No wallet found. Use /wallets to create one.';
-      let walletInfo = '';
-      const defaultWallet = await this.walletService.findDefaultWalletByUserId(user.id);
-      if (defaultWallet) {
-        walletInfo =
-          `💰 Wallet: ${defaultWallet.walletName}\n` +
-          `🔑 Public Key: ${defaultWallet.walletAddress} <a href="https://solscan.io/account/${defaultWallet.walletAddress}" target="_blank">( E )</a>\n` +
-          `💸 Balance: 0.0000 SOL ($0.00)\n`;
-      }
-      msg =
-        `👋 Welcome to ${platformName}\n` +
-        `You're now in the command center for trading new launches on Solana.\n\n` +
-        walletInfo + '\n' +
-        `🔹 Start Feed - Launch a real-time stream of new PumpSwap token listings, based on your Feed Filters.\n` +
-        `🔹 Auto Trade - The bot automatically executes trades on tokens that appear in your custom feed, using your preset trade settings.\n` +
-        `🔹 Feed Filters - Control which types of launches appear in your feed.\n` +
-        `🔹 Trade Settings - Adjust your trading parameters for both manual and auto-trade strategies.\n\n` +
-        `👥 Referral Link - https://t.me/${this.config.get(ENV.TELEGRAM_BOT_NAME)}?start=${user.inviteCode} (Tap to copy)\n` +
-        `👥 Total Invites - ${user.totalInvites}\n\n` +
-        `📖 For advanced guidance and strategies, check out our GitBook.`;
-      const keyboard = Markup.inlineKeyboard([
-        [
-          Markup.button.callback('➕ StartFeed', TelegramKey.Feed),
-          Markup.button.callback('👛 Auto Trade', TelegramKey.ImportWallet),
-        ],
-        [
-          Markup.button.callback('🔐 Security Tips', TelegramKey.SecurityTips),
-          Markup.button.callback('🏠 Main Menu', TelegramKey.MainMenu),
-        ],
-        [
-          Markup.button.callback('🔐 Security Tips', TelegramKey.SecurityTips),
-          Markup.button.callback('🏠 Main Menu', TelegramKey.MainMenu),
-        ],
-        [
-          Markup.button.callback('🔐 Security Tips', TelegramKey.SecurityTips),
-          Markup.button.callback('🏠 Main Menu', TelegramKey.MainMenu),
-        ],
-      ]);
-      await ctx.reply(msg, { parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: keyboard.reply_markup });
+      await this.sendMainMenu(ctx);
     });
     this.bot.help((ctx) => ctx.replyWithMarkdownV2(HELP_MESSAGE));
 
@@ -171,12 +133,7 @@ export class TelegramService implements OnModuleInit {
     this.bot.action(TelegramKey.Wallets, async (ctx) => {
       const tgId = ctx.from?.id;
       if (!tgId) return;
-      const walletExists = (await this.getUserWallets(tgId)).length > 0;
-      if (!walletExists) {
-        await this.sendNoWalletMessage(ctx, true);
-      } else {
-        await ctx.editMessageText('You already have a wallet!');
-      }
+      await this.walletsCommandHandler.handle(ctx, true);
       await ctx.answerCbQuery();
     });
 
@@ -219,26 +176,6 @@ export class TelegramService implements OnModuleInit {
     const user = await this.userService.findByTgId(tgId);
     if (!user) return [];
     return this.walletService.findWalletsByUserId(user.id);
-  }
-
-  // 封装无钱包时的提示和按钮
-  private async sendNoWalletMessage(ctx: MyContext, edit = false) {
-    const text = `💼 No wallets found. Use the buttons below to create or import a wallet.`;
-    const keyboard = Markup.inlineKeyboard([
-      [
-        Markup.button.callback('➕ Create Wallet', TelegramKey.CreateWallet),
-        Markup.button.callback('👛 Import Wallet', TelegramKey.ImportWallet),
-      ],
-      [
-        Markup.button.callback('🔐 Security Tips', TelegramKey.SecurityTips),
-        Markup.button.callback('🏠 Main Menu', TelegramKey.MainMenu),
-      ],
-    ]);
-    if (edit && 'editMessageText' in ctx) {
-      await ctx.editMessageText(text, keyboard);
-    } else {
-      await ctx.reply(text, keyboard);
-    }
   }
 
   // 获取当前时间（如 22:09）
@@ -326,6 +263,60 @@ export class TelegramService implements OnModuleInit {
     } else {
       await ctx.reply(text, keyboard);
     }
+  }
+
+  // 主菜单消息生成与发送，带钱包校验
+  private async sendMainMenu(ctx: MyContext) {
+    const tgId = ctx.from?.id;
+    if (!tgId) return;
+    const user = await this.userService.findByTgId(tgId);
+    if (!user || !user.agreedToTerms) {
+      await ctx.reply('❌ You must agree to the terms to use the bot.');
+      return;
+    }
+    const wallets = await this.walletService.findWalletsByUserId(user.id);
+    let walletInfo = '';
+    if (wallets.length === 0) {
+      await ctx.reply('❌ No wallet found. Use /wallets to create one.');
+      return;
+    }
+    const defaultWallet = await this.walletService.findDefaultWalletByUserId(user.id);
+    if (defaultWallet) {
+      walletInfo =
+        `💰 Wallet: ${defaultWallet.walletName}\n` +
+        `🔑 Public Key: ${defaultWallet.walletAddress} <a href="https://solscan.io/account/${defaultWallet.walletAddress}" target="_blank">( E )</a>\n` +
+        `💸 Balance: 0.0000 SOL ($0.00)\n`;
+    }
+    const msg =
+      `👋 Welcome to ${platformName}\n` +
+      `You're now in the command center for trading new launches on Solana.\n\n` +
+      walletInfo + '\n' +
+      `🔹 Start Feed - Launch a real-time stream of new PumpSwap token listings, based on your Feed Filters.\n` +
+      `🔹 Auto Trade - The bot automatically executes trades on tokens that appear in your custom feed, using your preset trade settings.\n` +
+      `🔹 Feed Filters - Control which types of launches appear in your feed.\n` +
+      `🔹 Trade Settings - Adjust your trading parameters for both manual and auto-trade strategies.\n\n` +
+      `👥 Referral Link - https://t.me/${this.config.get(ENV.TELEGRAM_BOT_NAME)}?start=${user.inviteCode} (Tap to copy)\n` +
+      `👥 Total Invites - ${user.totalInvites}\n\n` +
+      `📖 For advanced guidance and strategies, check out our GitBook.`;
+    const keyboard = Markup.inlineKeyboard([
+      [
+        Markup.button.callback('➕ StartFeed', TelegramKey.Feed),
+        Markup.button.callback('👛 Auto Trade', TelegramKey.ImportWallet),
+      ],
+      [
+        Markup.button.callback('🔐 Security Tips', TelegramKey.SecurityTips),
+        Markup.button.callback('🏠 Main Menu', TelegramKey.MainMenu),
+      ],
+      [
+        Markup.button.callback('🔐 Security Tips', TelegramKey.SecurityTips),
+        Markup.button.callback('🏠 Main Menu', TelegramKey.MainMenu),
+      ],
+      [
+        Markup.button.callback('🔐 Security Tips', TelegramKey.SecurityTips),
+        Markup.button.callback('🏠 Main Menu', TelegramKey.MainMenu),
+      ],
+    ]);
+    await ctx.reply(msg, { parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: keyboard.reply_markup });
   }
 
 

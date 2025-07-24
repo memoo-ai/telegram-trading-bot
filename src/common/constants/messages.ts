@@ -1,4 +1,5 @@
 import { escapeMarkdownV2 } from 'src/utils';
+import { Emoji } from './emoji';
 // 帮助命令消息
 const HELP_MESSAGE = escapeMarkdownV2(`
   🤖 Bot Commands
@@ -51,4 +52,6 @@ Security Tips
 • Monitor your transactions regularly
 `);
 
-export { HELP_MESSAGE };
+const NO_WALLET_MESSAGE = `${Emoji.Wallet} No wallets found. Use the buttons below to create or import a wallet.`
+
+export { HELP_MESSAGE, NO_WALLET_MESSAGE };
