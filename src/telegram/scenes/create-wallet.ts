@@ -34,7 +34,8 @@ createWalletScene.on('text', async (ctx) => {
 
   // 过滤指令消息
   if (walletName.startsWith('/')) {
-    await ctx.reply('❌ Wallet name cannot start with "/". Please enter a valid wallet name.');
+    // await ctx.reply('❌ Wallet name cannot start with "/". Please enter a valid wallet name.');
+    await ctx.scene.leave();
     return;
   }
 

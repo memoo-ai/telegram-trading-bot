@@ -31,3 +31,5 @@ docs
 /stats.html
 *.env.development
 *.env.production
+*src/data-source.ts
+*scripts

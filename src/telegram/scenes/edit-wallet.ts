@@ -5,7 +5,7 @@ import { WalletService } from 'src/wallet/wallet.service';
 import { MyContext } from '../type';
 import { Wallet } from 'src/wallet/entities/wallet.entity';
 import { formatWalletLink } from 'src/utils/wallet';
-import { BackText } from 'src/common/constants';
+import { BACK_TEXT } from 'src/common/constants';
 import { Emoji } from 'src/common/constants/emoji';
 import { WalletsCommandHandler } from '../commands/wallets.command.handler'; // 假设你已导出 walletsCommandHandler
 
@@ -58,7 +58,7 @@ editWalletScene.enter(async (ctx) => {
     [Markup.button.callback(wallet.isDefaultWallet ? `${Emoji.Default} Default Wallet` : `${Emoji.SetDefault} Set as Default`, `${TelegramKey.SetDefaultWallet}`)],
     [Markup.button.callback(`${Emoji.Withdraw} Withdraw SOL`, `${TelegramKey.SetDefaultWallet}:${walletId}`)],
     [Markup.button.callback(`${Emoji.Delete} Remove Wallet`, `${TelegramKey.DeleteWallet}:${walletId}`)],
-    [Markup.button.callback(BackText, `${TelegramKey.Back}`)],
+    [Markup.button.callback(BACK_TEXT, `${TelegramKey.Back}`)],
   ]);
 
   const options = {

@@ -1,4 +1,4 @@
 // 这里需要一个平台名称
-export const platformName = 'TradingBot';
+export const PLATFORM_NAME = 'TradingBot';
 
-export const BackText = '🔙 Back';
+export const BACK_TEXT = '🔙 Back';

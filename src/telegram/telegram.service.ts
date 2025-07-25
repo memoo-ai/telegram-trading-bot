@@ -8,7 +8,7 @@ import { Telegraf, Markup, Scenes, session } from 'telegraf';
 import { UserService } from '../user/user.service';
 import { Wallet } from 'src/wallet/entities/wallet.entity';
 import { WalletService } from 'src/wallet/wallet.service';
-import { platformName } from 'src/common/constants';
+import { PLATFORM_NAME } from 'src/common/constants';
 import { ConfigService } from '@nestjs/config';
 import { ENV } from 'src/common/config/env';
 import { EditWalletSceneState, MyContext } from './type';
@@ -16,6 +16,7 @@ import { WalletsCommandHandler } from './commands/wallets.command.handler';
 import { SettingsCommandHandler } from './commands/settings.command.handler';
 import { WalletUtils } from 'src/utils/wallet';
 import { USER_CHECK_INTERVAL } from 'src/common/constants/time.constants';
+import { BuyCommandHandler } from './commands/buy.command.handler';
 
 
 @Injectable()
@@ -28,6 +29,7 @@ export class TelegramService implements OnModuleInit {
     private readonly config: ConfigService,
     private readonly walletsCommandHandler: WalletsCommandHandler,
     private readonly settingsCommandHandler: SettingsCommandHandler,
+    private readonly buyCommandHandler: BuyCommandHandler,
   ) { }
 
 
@@ -49,6 +51,8 @@ export class TelegramService implements OnModuleInit {
     setCreateWalletSceneServices(this.userService, this.walletService, this.walletUtils);
     // 注入编辑钱包场景服务
     setEditWalletSceneServices(this.userService, this.walletService, this.walletsCommandHandler);
+    // 注入购买/卖出场景服务 TODO
+
     const stage = new Scenes.Stage<MyContext>([createWalletScene, termsScene, editWalletScene]);
     this.bot.use(session());
     this.bot.use(stage.middleware());
@@ -91,6 +95,8 @@ export class TelegramService implements OnModuleInit {
         }
         await ctx.scene.enter(TelegramScenes.Terms);
         return;
+      } else {
+
       }
       await next();
     });
@@ -288,7 +294,7 @@ export class TelegramService implements OnModuleInit {
         `💸 Balance: 0.0000 SOL ($0.00)\n`;
     }
     const msg =
-      `👋 Welcome to ${platformName}\n` +
+      `👋 Welcome to ${PLATFORM_NAME}\n` +
       `You're now in the command center for trading new launches on Solana.\n\n` +
       walletInfo + '\n' +
       `🔹 Start Feed - Launch a real-time stream of new PumpSwap token listings, based on your Feed Filters.\n` +

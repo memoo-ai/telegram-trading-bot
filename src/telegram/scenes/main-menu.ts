@@ -1,7 +1,7 @@
 // src/telegram/utils/main-menu.ts
 import { Markup } from 'telegraf';
 import { TelegramKey } from 'src/common/constants/telegram';
-import { platformName } from 'src/common/constants';
+import { PLATFORM_NAME } from 'src/common/constants';
 
 export async function MainMenu(ctx, user, defaultWallet, config) {
   let walletInfo = '';
@@ -12,7 +12,7 @@ export async function MainMenu(ctx, user, defaultWallet, config) {
       `💸 Balance: 0.0000 SOL ($0.00)\n`;
   }
   const msg =
-    `👋 Welcome to ${platformName}\n` +
+    `👋 Welcome to ${PLATFORM_NAME}\n` +
     `You're now in the command center for trading new launches on Solana.\n\n` +
     walletInfo + '\n' +
     `🔹 Start Feed - Launch a real-time stream of new PumpSwap token listings, based on your Feed Filters.\n` +

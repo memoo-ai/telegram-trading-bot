@@ -1,3 +1,5 @@
+import { PLATFORM_NAME } from ".";
+
 export enum TelegramKey {
   // commands
   Start = 'start',
@@ -40,27 +42,12 @@ export const TELEGRAM_BOT_COMMANDS = [
   { command: TelegramKey.Feed, description: 'Manage your feed' },
   { command: TelegramKey.AutoTrade, description: 'Configure auto trading' },
   { command: TelegramKey.Wallets, description: 'Manage wallets (create, import, withdraw)' },
-  { command: TelegramKey.AutoTrade, description: 'View token positions' },
+  { command: TelegramKey.Positions, description: 'View token positions' },
   { command: TelegramKey.Buy, description: 'Buy a token' },
   { command: TelegramKey.Sell, description: 'Sell a token' },
   { command: TelegramKey.Withdraw, description: 'Withdraw SOL from default wallet' },
   { command: TelegramKey.Filters, description: 'Configure trading filters' },
   { command: TelegramKey.Settings, description: 'Configure manual and auto trade settings' },
-  { command: TelegramKey.Help, description: 'Show available commands and usage' },
-  // 你可以继续添加自定义命令
-];
-export const TELEGRAM_BOT_ACTIONS = [
-  { label: TelegramKey.Start, description: 'Main Menu for quick actions' },
-  { command: TelegramKey.Feed, description: 'Manage your feed' },
-  { command: TelegramKey.AutoTrade, description: 'Configure auto trading' },
-  { command: TelegramKey.Wallets, description: 'Manage wallets (create, import, withdraw)' },
-  { command: TelegramKey.AutoTrade, description: 'View token positions' },
-  { command: TelegramKey.Buy, description: 'Buy a token' },
-  { command: TelegramKey.Sell, description: 'Sell a token' },
-  { command: TelegramKey.Withdraw, description: 'Withdraw SOL from default wallet' },
-  { command: TelegramKey.Filters, description: 'Configure trading filters' },
-  { command: TelegramKey.Settings, description: 'Configure manual and auto trade settings' },
-  { command: TelegramKey.Help, description: 'Show available commands and usage' },
   { command: TelegramKey.Help, description: 'Show available commands and usage' },
   // 你可以继续添加自定义命令
 ];
@@ -73,7 +60,7 @@ export enum TelegramScenes {
 
 export const TERMS_OF_SERVICE = `
 📜 Terms of Service & Privacy Policy
-By using Valkyr Trading Bot, you agree to our Terms of Service and Privacy Policy.
+By using ${PLATFORM_NAME} Trading Bot, you agree to our Terms of Service and Privacy Policy.
 
 🔹 Risk Disclosure
 Cryptocurrency trading involves significant risk of loss and is not suitable for all investors. You should carefully consider whether trading is appropriate for you in light of your financial condition. Past performance is not indicative of future results.
