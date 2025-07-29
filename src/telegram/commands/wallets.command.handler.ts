@@ -19,7 +19,6 @@ export class WalletsCommandHandler extends BaseCommandHandler {
     private readonly walletService: WalletService
   ) {
     super();
-    console.log('WalletsCommandHandler constructor:', { userService, walletService });
     if (!this.userService) {
       throw new Error('UserService not injected');
     }
@@ -46,7 +45,7 @@ export class WalletsCommandHandler extends BaseCommandHandler {
         return;
       }
       const wallets = await this.getUserWallets(userId);
-      console.log(wallets);
+      // console.log(wallets);
       let msg = '';
       if (wallets.length === 0) {
         msg = NO_WALLET_MESSAGE;

@@ -5,6 +5,8 @@ import { WalletService } from 'src/wallet/wallet.service';
 import { WalletUtils } from 'src/utils/wallet';
 import { MyContext } from '../type';
 import { WALLET_PRIVATE_KEY_DELETE_DELAY } from 'src/common/constants/time.constants';
+import { User } from 'src/user/entities/user.entity';
+import { Wallet } from 'src/wallet/entities/wallet.entity';
 
 // 创建场景
 export const createWalletScene = new Scenes.BaseScene<MyContext>(TelegramScenes.CreateWallet);
@@ -45,23 +47,44 @@ createWalletScene.on('text', async (ctx) => {
     return;
   }
 
-  const user = await userService.findByTgId(tgId);
-  const existingWallets = await walletService.findWalletsByUserId(user.id);
+  let user: User | null = null;
+  let existingWallets: Wallet[] = [];
+  let isDuplicate = false;
+  try {
+    user = await userService.findByTgId(tgId);
+  } catch (e) {
+    await ctx.reply('❌ User not found. Please start the bot first.');
+    return;
+  }
+
+  try {
+    existingWallets = await walletService.findWalletsByUserId(user.id);
+    isDuplicate = existingWallets.some(wallet => wallet.walletName === walletName)
+  } catch (e) {
+    await ctx.reply('❌ Failed to check existing wallets. Please try again.');
+    return;
+  }
 
   // 检查是否存在重复的钱包名称
-  const isDuplicate = existingWallets.some(wallet => wallet.walletName === walletName);
   if (isDuplicate) {
     await ctx.reply('❌ A wallet with this name already exists. Please choose a different name.');
     return;
   }
 
-  await ctx.scene.leave();
+  // 创建钱包
   const { publicKey, secretKey } = walletUtils.createSolanaWallet();
   const isDefaultWallet = existingWallets.length === 0;
-  await walletService.createWallet(
-    user,
-    { walletName, isDefaultWallet, walletAddress: publicKey, walletPrivateKey: secretKey }
-  );
+  
+  try {
+    await walletService.createWallet(
+      user,
+      { walletName, isDefaultWallet, walletAddress: publicKey, walletPrivateKey: secretKey }
+    );
+  } catch (e) {
+    console.error('Failed to create wallet:', e);
+    await ctx.reply('❌ Failed to create wallet. Please try again.');
+    return;
+  }
 
   // 发送私钥安全提示
   const sent = await ctx.reply(
@@ -98,4 +121,7 @@ createWalletScene.on('text', async (ctx) => {
       await ctx.deleteMessage(sent.message_id);
     } catch (e) {}
   }, WALLET_PRIVATE_KEY_DELETE_DELAY);
+
+  // 成功创建钱包后离开场景
+  await ctx.scene.leave();
 });

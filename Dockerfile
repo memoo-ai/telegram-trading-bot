@@ -27,4 +27,4 @@ USER node
 HEALTHCHECK --interval=30s CMD curl -f http://localhost:3000/health || exit 1
 
 EXPOSE 3000
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/main.js"]

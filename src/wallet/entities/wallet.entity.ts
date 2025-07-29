@@ -26,10 +26,10 @@ export class Wallet {
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP', onUpdate: 'CURRENT_TIMESTAMP' })
   updatedAt: Date; // 这里应该是时间戳
 
-  @Column()
+  @Column({ default: 0 })
   balance: number;
 
-  @Column()
+  @Column({ default: 0 })
   balanceUsd: number;
 
   @ManyToOne(() => User, user => user.wallets)

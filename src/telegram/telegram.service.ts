@@ -85,6 +85,13 @@ export class TelegramService implements OnModuleInit {
     this.bot.use(async (ctx, next) => {
       const tgId = ctx.from?.id;
       if (!tgId) return;
+      
+      // 如果用户已经在场景中，不要重复检查
+      if (ctx.scene?.current) {
+        await next();
+        return;
+      }
+      
       const user = await this.userService.findByTgId(tgId);
       if (!user || !user.agreedToTerms) {
         // 保存邀请码（如果有）
@@ -95,9 +102,8 @@ export class TelegramService implements OnModuleInit {
         }
         await ctx.scene.enter(TelegramScenes.Terms);
         return;
-      } else {
-
       }
+      
       await next();
     });
 
@@ -123,7 +129,13 @@ export class TelegramService implements OnModuleInit {
 
     // Buy 指令
     this.bot.command(TelegramKey.Buy, async (ctx) => {
-      await this.sendBuyMessage(ctx, false);
+      // await this.sendBuyMessage(ctx, false);
+      await this.buyCommandHandler.handle(ctx, false);
+    });
+    // Sell 指令  TODO
+    this.bot.command(TelegramKey.Sell, async (ctx) => {
+      // await this.sendBuyMessage(ctx, false);
+      await this.buyCommandHandler.handle(ctx, true);
     });
 
     // 监听 /wallets 指令（新消息）

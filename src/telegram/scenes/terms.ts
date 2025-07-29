@@ -30,31 +30,34 @@ termsScene.enter((ctx) => {
 
 // 同意条款
 termsScene.action(TelegramKey.AgreeTerms, async (ctx) => {
+  await ctx.answerCbQuery();
+  
   // 标记用户已同意并注册
   const tgId = ctx.from.id;
   // 获取 session 中的邀请码
-  const inviteCode = ctx.session?.inviteCode || null;
-  // 注册用户（带邀请码）
-  await userService.checkOrCreateAndUpdateUser({
-    tgId,
-    username: ctx.from.username,
-    firstName: ctx.from.first_name,
-    lastName: ctx.from.last_name,
-    isBot: ctx.from.is_bot,
-    referralCode: inviteCode,
-  });
-  await userService.setAgreedToTerms(tgId, true);
-  await ctx.reply('Thank you for accepting the terms. Welcome!');
-  await ctx.scene.leave();
-  await ctx.answerCbQuery();
-  // 注册完成后可直接进入主菜单（可选：自动触发 /start）
-  await bot.handleUpdate({
-    message: {
-      ...(ctx.message || {}),
-      text: '/start',
-    },
-    from: ctx.from,
-  } as any);
+  const inviteCode = ctx.session?.inviteCode || '';
+  
+  try {
+    // 注册用户（带邀请码）
+    await userService.checkOrCreateAndUpdateUser({
+      tgId,
+      username: ctx.from.username,
+      firstName: ctx.from.first_name,
+      lastName: ctx.from.last_name,
+      isBot: ctx.from.is_bot,
+      referralCode: inviteCode,
+    });
+    await userService.setAgreedToTerms(tgId, true);
+    
+    await ctx.reply('Thank you for accepting the terms. Welcome!');
+    await ctx.scene.leave();
+    
+    // 发送主菜单
+    await ctx.reply('Use /start to access the main menu.');
+  } catch (error) {
+    console.error('Error in AgreeTerms action:', error);
+    await ctx.reply('❌ An error occurred. Please try again.');
+  }
 });
 
 // 不同意条款

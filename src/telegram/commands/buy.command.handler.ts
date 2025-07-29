@@ -19,7 +19,6 @@ export class BuyCommandHandler extends BaseCommandHandler {
     private readonly walletUtils: WalletUtils
   ) {
     super();
-    console.log('BuyCommandHandler constructor:', { userService, walletService, walletUtils });
     if (!this.userService) {
       throw new Error('UserService not injected');
     }
