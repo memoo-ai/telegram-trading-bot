@@ -1,5 +1,5 @@
 import { Scenes, Markup } from 'telegraf';
-import { TelegramScenes } from 'src/common/constants/telegram';
+import { TelegramScenes, TelegramKey } from 'src/common/constants/telegram';
 import { UserService } from 'src/user/user.service';
 import { WalletService } from 'src/wallet/wallet.service';
 import { WalletUtils } from 'src/utils/wallet';
@@ -7,6 +7,8 @@ import { MyContext } from '../type';
 import { WALLET_PRIVATE_KEY_DELETE_DELAY } from 'src/common/constants/time.constants';
 import { User } from 'src/user/entities/user.entity';
 import { Wallet } from 'src/wallet/entities/wallet.entity';
+import { MessageManager } from '../utils/message-manager';
+import { WalletsCommandHandler } from '../commands/wallets.command.handler';
 
 // 创建场景
 export const createWalletScene = new Scenes.BaseScene<MyContext>(TelegramScenes.CreateWallet);
@@ -15,19 +17,37 @@ export const createWalletScene = new Scenes.BaseScene<MyContext>(TelegramScenes.
 let userService: UserService;
 let walletService: WalletService;
 let walletUtils: WalletUtils;
+let walletsCommandHandler: WalletsCommandHandler;
 
 export function setCreateWalletSceneServices(
   _userService: UserService,
   _walletService: WalletService,
-  _walletUtils: WalletUtils
+  _walletUtils: WalletUtils,
+  _walletsCommandHandler: WalletsCommandHandler
 ) {
   userService = _userService;
   walletService = _walletService;
   walletUtils = _walletUtils;
+  walletsCommandHandler = _walletsCommandHandler;
 }
 
 // 进入场景
-createWalletScene.enter((ctx) => ctx.reply('Please enter a label for your new wallet:'));
+createWalletScene.enter(async (ctx) => {
+  const text = `✨ Create a New Wallet\n\nPlease enter a label for your new wallet:\nExample: "My Trading Wallet"`;
+  const keyboard = Markup.inlineKeyboard([
+    [Markup.button.callback('<< Back to Wallets', TelegramKey.Wallets)],
+  ]);
+  
+  await MessageManager.sendOrEditMessage(ctx, text, keyboard);
+});
+
+// 处理 Back to Wallets 按钮
+createWalletScene.action(TelegramKey.Wallets, async (ctx) => {
+  await ctx.answerCbQuery();
+  await ctx.scene.leave();
+  // 返回到钱包列表
+  await walletsCommandHandler.handle(ctx);
+});
 
 // 处理文本输入
 createWalletScene.on('text', async (ctx) => {
@@ -36,7 +56,6 @@ createWalletScene.on('text', async (ctx) => {
 
   // 过滤指令消息
   if (walletName.startsWith('/')) {
-    // await ctx.reply('❌ Wallet name cannot start with "/". Please enter a valid wallet name.');
     await ctx.scene.leave();
     return;
   }
@@ -50,6 +69,7 @@ createWalletScene.on('text', async (ctx) => {
   let user: User | null = null;
   let existingWallets: Wallet[] = [];
   let isDuplicate = false;
+  
   try {
     user = await userService.findByTgId(tgId);
   } catch (e) {
@@ -59,7 +79,7 @@ createWalletScene.on('text', async (ctx) => {
 
   try {
     existingWallets = await walletService.findWalletsByUserId(user.id);
-    isDuplicate = existingWallets.some(wallet => wallet.walletName === walletName)
+    isDuplicate = existingWallets.some(wallet => wallet.walletName === walletName);
   } catch (e) {
     await ctx.reply('❌ Failed to check existing wallets. Please try again.');
     return;
@@ -81,7 +101,6 @@ createWalletScene.on('text', async (ctx) => {
       { walletName, isDefaultWallet, walletAddress: publicKey, walletPrivateKey: secretKey }
     );
   } catch (e) {
-    console.error('Failed to create wallet:', e);
     await ctx.reply('❌ Failed to create wallet. Please try again.');
     return;
   }

@@ -4,14 +4,10 @@ import { TelegramKey } from 'src/common/constants/telegram';
 import { BaseCommandHandler } from './base.command.handler';
 
 /**
- * 设置指令处理器
+ * 持仓指令处理器
  */
 export class PositionsCommandHandler extends BaseCommandHandler {
-  getCommand(): string {
-    return TelegramKey.Positions;
-  }
-
-  async handle(ctx: MyContext, edit: boolean = false): Promise<void> {
+  async handle(ctx: MyContext): Promise<void> {
     const text = 
       `No token positions found in your wallet.`;
 
@@ -25,6 +21,6 @@ export class PositionsCommandHandler extends BaseCommandHandler {
       ],
     ]);
 
-    await this.sendOrEditMessage(ctx, text, keyboard, edit);
+    await this.sendOrEditMessage(ctx, text, keyboard);
   }
 }

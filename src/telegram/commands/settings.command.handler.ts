@@ -7,11 +7,7 @@ import { BaseCommandHandler } from './base.command.handler';
  * 设置指令处理器
  */
 export class SettingsCommandHandler extends BaseCommandHandler {
-  getCommand(): string {
-    return TelegramKey.Settings;
-  }
-
-  async handle(ctx: MyContext, edit: boolean = false): Promise<void> {
+  async handle(ctx: MyContext): Promise<void> {
     const text = 
       `⚙️ Settings Configuration
 
@@ -33,6 +29,6 @@ export class SettingsCommandHandler extends BaseCommandHandler {
       ],
     ]);
 
-    await this.sendOrEditMessage(ctx, text, keyboard, edit);
+    await this.sendOrEditMessage(ctx, text, keyboard);
   }
 }

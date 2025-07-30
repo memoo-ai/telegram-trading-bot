@@ -6,6 +6,7 @@ import { ExchangeRate } from './exchange-rate.entity';
 import { UserModule } from 'src/user/user.module';
 import { WalletModule } from 'src/wallet/wallet.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
+// import { RaydiumSwapService } from './Raydium/swap';
 
 @Module({
   imports: [UserModule, WalletModule, TypeOrmModule.forFeature([ExchangeRate])],

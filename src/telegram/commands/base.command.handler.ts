@@ -1,42 +1,67 @@
-import { Markup } from 'telegraf';
 import { MyContext } from '../type';
-import { CommandHandler } from './command.handler.interface';
+import { Markup } from 'telegraf';
+import { MessageManager } from '../utils/message-manager';
 
-/**
- * 基础指令处理器
- */
-export abstract class BaseCommandHandler implements CommandHandler {
-  abstract getCommand(): string;
-
-  abstract handle(ctx: MyContext, edit?: boolean): Promise<void>;
-
+export abstract class BaseCommandHandler {
   /**
    * 发送或编辑消息
-   * @param ctx 上下文对象
-   * @param text 消息文本
-   * @param keyboard 键盘
-   * @param edit 是否为编辑消息
-   * @param parseMode 解析模式
    */
   protected async sendOrEditMessage(
     ctx: MyContext,
     text: string,
-    keyboard: Markup.Markup<any>,
-    edit: boolean = false,
-    parseMode?: 'HTML' | 'MarkdownV2'
+    keyboard?: Markup.Markup<any>,
+    parseMode: 'HTML' | 'MarkdownV2' = 'HTML'
   ): Promise<void> {
-    const options: any = { reply_markup: keyboard.reply_markup };
-    if (parseMode) {
-      options.parse_mode = parseMode;
-      if (parseMode === 'HTML') {
-        options.link_preview_options = { is_disabled: true };
-      }
-    }
+    await MessageManager.sendOrEditMessage(ctx, text, keyboard, {
+      parse_mode: parseMode,
+    });
+  }
 
-    if (edit && 'editMessageText' in ctx) {
-      await ctx.editMessageText(text, options);
+  /**
+   * 返回上一级菜单
+   */
+  protected async goBack(
+    ctx: MyContext,
+    text: string,
+    keyboard: Markup.Markup<any>,
+    parseMode: 'HTML' | 'MarkdownV2' = 'HTML'
+  ): Promise<void> {
+    await this.sendOrEditMessage(ctx, text, keyboard, parseMode);
+  }
+
+  /**
+   * 进入场景前编辑消息
+   */
+  protected async enterSceneWithMessage(
+    ctx: MyContext,
+    sceneName: string,
+    text: string,
+    keyboard?: Markup.Markup<any>,
+    sceneData?: any
+  ): Promise<void> {
+    // 先编辑消息
+    await MessageManager.editMessageBeforeScene(ctx, text, keyboard);
+    
+    // 然后进入场景
+    if (sceneData) {
+      await ctx.scene.enter(sceneName, sceneData);
     } else {
-      await ctx.reply(text, options);
+      await ctx.scene.enter(sceneName);
     }
+  }
+
+  /**
+   * 从场景返回
+   */
+  protected async returnFromScene(
+    ctx: MyContext,
+    text: string,
+    keyboard: Markup.Markup<any>,
+    parseMode: 'HTML' | 'MarkdownV2' = 'HTML'
+  ): Promise<void> {
+    await ctx.scene.leave();
+    await MessageManager.restoreMessageAfterScene(ctx, text, keyboard, {
+      parse_mode: parseMode,
+    });
   }
 }

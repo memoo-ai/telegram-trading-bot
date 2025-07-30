@@ -35,6 +35,21 @@ export enum TelegramKey {
   CancelDeleteWallet = 'cancel_delete_wallet',
   ConfirmDeleteWallet = 'confirm_delete_wallet',
   Back = 'back',
+  // Auto Trade related keys
+  AutoTradeBuyAmount = 'auto_trade_buy_amount',
+  AutoTradeSlippage = 'auto_trade_slippage',
+  AutoTradePriorityFee = 'auto_trade_priority_fee',
+  AutoTradeTakeProfit = 'auto_trade_take_profit',
+  AutoTradeStopLoss = 'auto_trade_stop_loss',
+  AutoTradeAutoSell = 'auto_trade_auto_sell',
+  StartAutoTrade = 'start_auto_trade',
+  StopAutoTrade = 'stop_auto_trade',
+  AutoTradeHistory = 'auto_trade_history',
+  EnableAutoSell = 'enable_auto_sell',
+  DisableAutoSell = 'disable_auto_sell',
+  PartialAutoSell = 'partial_auto_sell',
+  AutoTradeStats = 'auto_trade_stats',
+  ExportAutoTradeData = 'export_auto_trade_data',
 }
 
 export const TELEGRAM_BOT_COMMANDS = [

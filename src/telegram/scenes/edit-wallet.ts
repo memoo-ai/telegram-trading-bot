@@ -55,8 +55,8 @@ editWalletScene.enter(async (ctx) => {
 
   // 显示编辑菜单
   const keyboard = Markup.inlineKeyboard([
-    [Markup.button.callback(wallet.isDefaultWallet ? `${Emoji.Default} Default Wallet` : `${Emoji.SetDefault} Set as Default`, `${TelegramKey.SetDefaultWallet}`)],
-    [Markup.button.callback(`${Emoji.Withdraw} Withdraw SOL`, `${TelegramKey.SetDefaultWallet}:${walletId}`)],
+    [Markup.button.callback(wallet.isDefaultWallet ? `${Emoji.Default} Default Wallet` : `${Emoji.SetDefault} Set as Default`, `${TelegramKey.SetDefaultWallet}:${walletId}`)],
+    [Markup.button.callback(`${Emoji.Withdraw} Withdraw SOL`, `${TelegramKey.Withdraw}:${walletId}`)],
     [Markup.button.callback(`${Emoji.Delete} Remove Wallet`, `${TelegramKey.DeleteWallet}:${walletId}`)],
     [Markup.button.callback(BACK_TEXT, `${TelegramKey.Back}`)],
   ]);
@@ -151,11 +151,7 @@ editWalletScene.action(new RegExp(`^${TelegramKey.ConfirmDeleteWallet}:(.+)$`), 
   await walletService.deleteWallet(walletId);
   await ctx.scene.leave();
   // 删除后直接刷新原消息为钱包列表
-  if ('editMessageText' in ctx) {
-    await walletsCommandHandler.handle(ctx, true);
-  } else {
-    await walletsCommandHandler.handle(ctx, false);
-  }
+  await walletsCommandHandler.handle(ctx);
 });
 
 // 处理返回

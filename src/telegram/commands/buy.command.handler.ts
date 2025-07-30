@@ -30,11 +30,7 @@ export class BuyCommandHandler extends BaseCommandHandler {
     }
   }
 
-  getCommand(): string {
-    return TelegramKey.Buy;
-  }
-
-  async handle(ctx: MyContext, edit: boolean = false): Promise<void> {
+  async handle(ctx: MyContext): Promise<void> {
     try {
       const userId = ctx.from?.id;
       if (!userId) {
@@ -46,13 +42,20 @@ export class BuyCommandHandler extends BaseCommandHandler {
       const hasWallet = await this.walletUtils.hasUserCreatedWallet(userId);
 
       if (!hasWallet) {
-        await ctx.reply('💼 You need to create a wallet first before using this feature.');
+        const text = '💼 You need to create a wallet first before using this feature.';
+        const keyboard = Markup.inlineKeyboard([
+          [Markup.button.callback('Create Wallet', TelegramKey.CreateWallet)],
+        ]);
+        await this.sendOrEditMessage(ctx, text, keyboard);
         return;
       }
 
       // 如果用户已有钱包，显示购买相关内容
-      await ctx.reply('🛒 Welcome to the buy section!');
-      // 这里可以添加更多购买相关的逻辑
+      const text = '🛒 Welcome to the buy section!';
+      const keyboard = Markup.inlineKeyboard([
+        [Markup.button.callback('Back to Main Menu', TelegramKey.MainMenu)],
+      ]);
+      await this.sendOrEditMessage(ctx, text, keyboard);
     } catch (error) {
       console.error('Error handling buy command:', error);
       await ctx.reply('❌ An error occurred while processing your request');

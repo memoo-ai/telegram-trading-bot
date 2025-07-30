@@ -1,6 +1,6 @@
 import { Markup } from 'telegraf';
 import { MyContext } from '../type';
-import { TelegramKey } from 'src/common/constants/telegram';
+import { TelegramKey, TelegramScenes } from 'src/common/constants/telegram';
 import { BaseCommandHandler } from './base.command.handler';
 import { UserService } from 'src/user/user.service';
 import { WalletService } from 'src/wallet/wallet.service';
@@ -89,15 +89,60 @@ export class WalletsCommandHandler extends BaseCommandHandler {
 
       const keyboard = Markup.inlineKeyboard(buttons);
 
-      if (edit && 'editMessageText' in ctx) {
-        await ctx.editMessageText(msg, { parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: keyboard.reply_markup });
-      } else {
-        await ctx.reply(msg, { parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: keyboard.reply_markup });
-      }
+      await this.sendOrEditMessage(ctx, msg, keyboard);
+
+      // if (edit && 'editMessageText' in ctx) {
+      //   await ctx.editMessageText(msg, { parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: keyboard.reply_markup });
+      // } else {
+      //   await ctx.reply(msg, { parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: keyboard.reply_markup });
+      // }
 
     } catch (error) {
       console.error('Error handling wallets command:', error);
       await ctx.reply('❌ An error occurred while processing your request');
     }
+  }
+
+  /**
+   * 处理创建钱包按钮
+   */
+  async handleCreateWallet(ctx: MyContext): Promise<void> {
+    await ctx.scene.enter(TelegramScenes.CreateWallet);
+  }
+  
+  /**
+   * 处理导入钱包按钮
+   */
+  async handleImportWallet(ctx: MyContext): Promise<void> {
+    const text =
+    `📥 Import Existing Wallet\n\n` +
+    `Step 1 of 2: Name Your Wallet\n` +
+    `Please enter a name for this wallet\n` +
+    `Examples: "Trading Wallet", "Main Wallet", "DeFi Wallet"\n\n` +
+    `✏️ Send your wallet name in the next message`;
+  const keyboard = Markup.inlineKeyboard([
+    [Markup.button.callback('<< Back', TelegramKey.Wallets)],
+  ]);
+    await this.sendOrEditMessage(ctx, text, keyboard);
+  }
+
+  /**
+   * 发送安全提示
+   */
+  async sendSecurityTips(ctx: MyContext): Promise<void> {
+    const text =
+      `🔐 Wallet Security Tips\n\n` +
+      `1. Never share your private key with anyone\n` +
+      `2. Store your backup information securely\n` +
+      `3. Keep your backup in a safe place\n` +
+      `4. Don't store large amounts in trading wallet\n` +
+      `5. Always verify transactions before signing\n` +
+      `6. Be cautious of phishing attempts\n` +
+      `7. Use hardware wallets for large holdings`;
+    const keyboard = Markup.inlineKeyboard([
+      [Markup.button.callback('<< Back to Wallets', TelegramKey.Wallets)],
+    ]);
+    
+    await this.sendOrEditMessage(ctx, text, keyboard);
   }
 }
