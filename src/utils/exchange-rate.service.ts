@@ -67,7 +67,7 @@ export class ExchangeRateService {
   async scheduledUpdateTask() {
     try {
       await this.updateExchangeRate();
-      this.logger.log('Exchange rate updated successfully');
+      this.logger.log('Exchange rate updated successfully!');
     } catch (error) {
       this.logger.error('Failed to update exchange rate', error);
     }
