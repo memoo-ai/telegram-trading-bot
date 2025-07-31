@@ -8,8 +8,7 @@ import { API_CONSTANTS } from './common/constants/api.constants';
 import { SWAGGER } from './common/constants/swagger.constants';
 import { API } from './common/config/api';
 import { setDefaultResultOrder } from 'node:dns';
-// setDefaultResultOrder('ipv6first');
-setDefaultResultOrder('verbatim');
+setDefaultResultOrder('ipv6first');
 
 async function bootstrap() {
 
