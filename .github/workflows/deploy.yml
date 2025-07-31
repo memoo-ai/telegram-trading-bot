@@ -17,10 +17,10 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: npm install
+        run: yarn
 
       - name: Run build
-        run: npm run build:prod
+        run: yarn build:prod
 
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1
@@ -31,6 +31,6 @@ jobs:
           script: |
             cd /home/ec2-user/telegram-trading-bot
             git pull origin main
-            npm install --production
-            npm run build:prod
+            yarn
+            yarn build:prod
             pm2 restart telegram-trading-bot
