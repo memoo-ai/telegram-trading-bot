@@ -19,7 +19,6 @@ import { USER_CHECK_INTERVAL } from 'src/common/constants/time.constants';
 import { BuyCommandHandler } from './commands/buy.command.handler';
 import { MainMenuCommandHandler } from './commands/main-menu.command.handler';
 import { AutoTradeCommandHandler } from './commands/auto-trade.command.handler';
-import { setDefaultResultOrder } from "node:dns";
 
 
 @Injectable()
@@ -43,7 +42,7 @@ export class TelegramService implements OnModuleInit {
 
 
   onModuleInit() {
-    setDefaultResultOrder("ipv4first");
+    
 
     const token = this.config.get(ENV.TELEGRAM_BOT_TOKEN);
     // const token = '8315325433:AAFmWQlDeBmcmm_MiHxeVtwo7onWioFOa5g';

@@ -7,8 +7,12 @@ import { ValidationPipe } from '@nestjs/common';
 import { API_CONSTANTS } from './common/constants/api.constants';
 import { SWAGGER } from './common/constants/swagger.constants';
 import { API } from './common/config/api';
+import { setDefaultResultOrder } from 'node:dns';
 
 async function bootstrap() {
+
+  setDefaultResultOrder("ipv4first");
+
   const app = await NestFactory.create(AppModule, {
     logger: winstonLogger,
   });
