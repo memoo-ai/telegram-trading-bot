@@ -28,6 +28,8 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          timeout: 300s
           script: |
             cd /home/ec2-user/telegram-trading-bot
             git pull origin main
