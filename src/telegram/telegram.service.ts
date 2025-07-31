@@ -45,7 +45,8 @@ export class TelegramService implements OnModuleInit {
   onModuleInit() {
     setDefaultResultOrder("ipv4first");
 
-    const token = this.config.get(ENV.TELEGRAM_BOT_TOKEN);
+    // const token = this.config.get(ENV.TELEGRAM_BOT_TOKEN);
+    const token = '8315325433:AAFmWQlDeBmcmm_MiHxeVtwo7onWioFOa5g';
     if (!token) {
       throw new Error('TELEGRAM_BOT_TOKEN is not set in environment variables');
     }
