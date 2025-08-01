@@ -8,7 +8,7 @@ RUN yarn install --production --frozen-lockfile
 
 # 2. 复制源码并构建
 COPY . .
-RUN yarn build
+RUN yarn build:prod
 
 # 阶段2：生产环境
 FROM node:20-alpine
