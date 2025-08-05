@@ -21,7 +21,8 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "prepare": "husky install",
-    "reset-db": "ts-node scripts/reset-db.ts"
+    "reset-db": "ts-node scripts/reset-db.ts",
+    "generateKey": "cross-env NODE_ENV=production ts-node scripts/generateKey.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",

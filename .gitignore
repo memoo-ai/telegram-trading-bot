@@ -33,4 +33,5 @@ docs
 *.env.production
 *src/data-source.ts
 *scripts
+*pem
 *my-readme.md

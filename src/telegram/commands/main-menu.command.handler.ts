@@ -71,7 +71,7 @@ export class MainMenuCommandHandler extends BaseCommandHandler {
         Markup.button.callback('🛒 Buy', TelegramKey.Buy),
       ],
       [
-        Markup.button.callback('🔐 Security Tips', TelegramKey.SecurityTips),
+        // Markup.button.callback('🔐 Security Tips', TelegramKey.SecurityTips),
         Markup.button.callback('❓ Help', TelegramKey.Help),
       ],
     ]);

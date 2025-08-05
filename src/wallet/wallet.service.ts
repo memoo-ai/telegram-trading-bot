@@ -1,20 +1,23 @@
 import { Injectable } from '@nestjs/common';
 import { CreateWalletDto } from './dto/create-wallet.dto';
-import { UpdateWalletDto } from './dto/update-wallet.dto';
+
 import { InjectRepository } from '@nestjs/typeorm';
 import { Wallet } from './entities/wallet.entity';
 import { DeleteWallet } from './entities/delete-wallet.entity';
 import { Repository } from 'typeorm';
 import { User } from 'src/user/entities/user.entity';
+import { WalletUtils } from 'src/utils/wallet';
 import { Connection, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
 import { BALANCE_CACHE_EXPIRATION_MS } from 'src/common/constants/time.constants';
+import { encryptPrivateKey } from 'src/utils';
 
-
+  
 @Injectable()
 export class WalletService {
   constructor(
     @InjectRepository(Wallet)
     private walletRepo: Repository<Wallet>,
+    // private walletUtils: WalletUtils,
   ) { }
 
   // 查找所有钱包
@@ -36,10 +39,13 @@ export class WalletService {
     if (isDefaultWallet) {
       await this.walletRepo.update({ user: { id: user.id } }, { isDefaultWallet: false });
     }
+    // 使用WalletUtils加密私钥
+    const encryptedPrivateKey = encryptPrivateKey(walletPrivateKey);
+    
     const wallet = this.walletRepo.create({
       walletName,
       walletAddress,
-      walletPrivateKey,
+      walletPrivateKey: encryptedPrivateKey,
       isDefaultWallet,
       user,
     });

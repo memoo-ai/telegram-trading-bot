@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { forwardRef } from '@nestjs/common';
 import { WalletUtils } from './wallet';
 import { ExchangeRateService } from './exchange-rate.service';
 import { ExchangeRateScheduler } from './exchange-rate.scheduler';
@@ -9,7 +10,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 // import { RaydiumSwapService } from './Raydium/swap';
 
 @Module({
-  imports: [UserModule, WalletModule, TypeOrmModule.forFeature([ExchangeRate])],
+  imports: [UserModule, forwardRef(() => WalletModule), TypeOrmModule.forFeature([ExchangeRate])],
   providers: [WalletUtils, ExchangeRateService, ExchangeRateScheduler],
   exports: [WalletUtils, ExchangeRateService],
 })

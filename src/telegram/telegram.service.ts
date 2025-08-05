@@ -133,6 +133,11 @@ export class TelegramService implements OnModuleInit {
     });
     this.bot.help((ctx) => ctx.replyWithMarkdownV2(HELP_MESSAGE));
 
+    this.bot.action(TelegramKey.Help, async (ctx) => {
+      await ctx.replyWithMarkdownV2(HELP_MESSAGE);
+      await ctx.answerCbQuery();
+    });
+
     // Buy 指令
     this.bot.command(TelegramKey.Buy, async (ctx) => {
       await this.buyCommandHandler.handle(ctx);
@@ -152,18 +157,25 @@ export class TelegramService implements OnModuleInit {
     this.bot.command(TelegramKey.Wallets, async (ctx) => {
       await this.walletsCommandHandler.handle(ctx);
     });
-    // 监听 /settings 指令（新消息）
-    this.bot.command(TelegramKey.Settings, async (ctx) => {
-      await this.settingsCommandHandler.handle(ctx);
-    });
 
-    // 监听 wallets action（编辑消息）
-    this.bot.action(TelegramKey.Wallets, async (ctx) => {
+     // 监听 wallets action（编辑消息）
+     this.bot.action(TelegramKey.Wallets, async (ctx) => {
       const tgId = ctx.from?.id;
       if (!tgId) return;
       await this.walletsCommandHandler.handle(ctx);
       await ctx.answerCbQuery();
     });
+    // 监听 /settings 指令（新消息）
+    this.bot.command(TelegramKey.Settings, async (ctx) => {
+      await this.settingsCommandHandler.handle(ctx);
+    });
+
+    // 监听 /settings Action
+    this.bot.action(TelegramKey.Settings, async (ctx) => {
+      await this.settingsCommandHandler.handle(ctx);
+    });
+
+   
 
     this.bot.action(TelegramKey.SecurityTips, async (ctx) => {
       await this.walletsCommandHandler.sendSecurityTips(ctx);
