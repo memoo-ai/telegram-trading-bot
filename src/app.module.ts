@@ -1,8 +1,7 @@
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
-import { DATABASE_CONFIG } from './common/config/database.constants';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { PrismaModule } from './prisma/prisma.module';
 import { TelegramModule } from './telegram/telegram.module';
 import { UserModule } from './user/user.module';
 import { WalletModule } from './wallet/wallet.module';
@@ -15,20 +14,8 @@ import { UtilsModule } from './utils/utils.module';
       isGlobal: true,
       envFilePath: `.env.${process.env.NODE_ENV || 'development'}`,
     }),
+    PrismaModule,
     TelegramModule,
-    TypeOrmModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        type: DATABASE_CONFIG.TYPE,
-        host: config.get(DATABASE_CONFIG.HOST),
-        port: config.get<number>(DATABASE_CONFIG.PORT),
-        username: config.get(DATABASE_CONFIG.USERNAME),
-        password: config.get(DATABASE_CONFIG.PASSWORD),
-        database: config.get(DATABASE_CONFIG.NAME),
-        autoLoadEntities: true,
-        synchronize: true,
-      }),
-    }),
     UserModule,
     WalletModule,
     UtilsModule,

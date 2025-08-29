@@ -6,7 +6,6 @@ import { termsScene, setTermsSceneServices } from './scenes/terms';
 import { editWalletScene, setEditWalletSceneServices } from './scenes/edit-wallet';
 import { Telegraf, Markup, Scenes, session } from 'telegraf';
 import { UserService } from '../user/user.service';
-import { Wallet } from 'src/wallet/entities/wallet.entity';
 import { WalletService } from 'src/wallet/wallet.service';
 import { PLATFORM_NAME } from 'src/common/constants';
 import { ConfigService } from '@nestjs/config';
@@ -281,7 +280,7 @@ export class TelegramService implements OnModuleInit {
   }
 
 
-  private async getUserWallets(tgId: number): Promise<Wallet[]> {
+  private async getUserWallets(tgId: number) {
     const user = await this.userService.findByTgId(tgId);
     if (!user) return [];
     return this.walletService.findWalletsByUserId(user.id);

@@ -1,17 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { ExchangeRate } from './exchange-rate.entity';
 import axios from 'axios';
 import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class ExchangeRateService {
   private readonly logger = new Logger(ExchangeRateService.name);
 
   constructor(
-    @InjectRepository(ExchangeRate)
-    private exchangeRateRepository: Repository<ExchangeRate>,
+    private prisma: PrismaService,
     private configService: ConfigService,
   ) {}
 
@@ -39,25 +36,25 @@ export class ExchangeRateService {
   /**
    * 更新数据库中的汇率
    */
-  async updateExchangeRate(): Promise<ExchangeRate> {
+  async updateExchangeRate() {
     const solToUsdt = await this.fetchSolUsdtRate();
     const usdtToSol = 1 / solToUsdt;
 
     // 创建新的汇率记录
-    const exchangeRate = this.exchangeRateRepository.create({
-      solToUsdt,
-      usdtToSol,
+    return this.prisma.exchangeRate.create({
+      data: {
+        solToUsdt,
+        usdtToSol,
+      },
     });
-
-    return this.exchangeRateRepository.save(exchangeRate);
   }
 
   /**
    * 获取最新的汇率
    */
-  async getLatestExchangeRate(): Promise<ExchangeRate | null> {
-    return this.exchangeRateRepository.findOne({
-      order: { updatedAt: 'DESC' },
+  async getLatestExchangeRate() {
+    return this.prisma.exchangeRate.findFirst({
+      orderBy: { updatedAt: 'desc' },
     });
   }
 

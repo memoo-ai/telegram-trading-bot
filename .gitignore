@@ -35,3 +35,5 @@ docs
 *scripts
 *pem
 *my-readme.md
+
+/generated/prisma
