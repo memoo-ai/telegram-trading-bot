@@ -71,6 +71,7 @@ export enum TelegramScenes {
   CreateWallet = 'create_wallet',
   Terms = 'terms',
   EditWallet = 'edit_wallet',
+  Buy = 'buy',
 } 
 
 export const TERMS_OF_SERVICE = `

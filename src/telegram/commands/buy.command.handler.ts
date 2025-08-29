@@ -51,11 +51,8 @@ export class BuyCommandHandler extends BaseCommandHandler {
       }
 
       // 如果用户已有钱包，显示购买相关内容
-      const text = '🛒 Welcome to the buy section!';
-      const keyboard = Markup.inlineKeyboard([
-        [Markup.button.callback('Back to Main Menu', TelegramKey.MainMenu)],
-      ]);
-      await this.sendOrEditMessage(ctx, text, keyboard);
+      const text = '🛒 Welcome to the buy section!\n\nPlease enter the token address you want to buy:';
+      await this.sendOrEditMessage(ctx, text);
     } catch (error) {
       console.error('Error handling buy command:', error);
       await ctx.reply('❌ An error occurred while processing your request');

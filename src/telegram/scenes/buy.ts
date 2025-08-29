@@ -1,0 +1,107 @@
+import { Scenes, Markup } from 'telegraf';
+import { TelegramScenes, TelegramKey } from 'src/common/constants/telegram';
+import { UserService } from 'src/user/user.service';
+import { WalletService } from 'src/wallet/wallet.service';
+import { MyContext } from '../type';
+import { Wallet } from 'src/wallet/entities/wallet.entity';
+import { formatWalletLink } from 'src/utils/wallet';
+import { BACK_TEXT } from 'src/common/constants';
+import { Emoji } from 'src/common/constants/emoji';
+import { WalletsCommandHandler } from '../commands/wallets.command.handler'; // 假设你已导出 walletsCommandHandler
+
+// 创建场景
+export const buyScene = new Scenes.BaseScene<MyContext>(TelegramScenes.Buy);
+
+// 注入服务
+let userService: UserService;
+let walletService: WalletService;
+let walletsCommandHandler: WalletsCommandHandler;
+
+export function setBuySceneServices(  
+  _userService: UserService,
+  _walletService: WalletService,
+  _walletsCommandHandler: WalletsCommandHandler
+) {
+  userService = _userService;
+  walletService = _walletService;
+  walletsCommandHandler = _walletsCommandHandler;
+}
+
+// 进入场景
+buyScene.enter(async (ctx) => { 
+  // 从回调数据中获取钱包ID
+  const walletId = (ctx.scene.state as any).walletId;
+      // console.log("editWalletScene: walletId", walletId);
+  if (!walletId) {
+    await ctx.reply(`${Emoji.Error} Invalid wallet ID`);
+    return ctx.scene.leave();
+  }
+
+  // 获取钱包信息
+  const wallet = await walletService.findWalletById(walletId);
+  if (!wallet) {
+    await ctx.reply(`${Emoji.Error} Wallet not found`);
+    return ctx.scene.leave();
+  }
+
+  // 存储钱包信息到场景状态
+  (ctx.scene.state as any).wallet = wallet;
+
+  const walletText = `${Emoji.Wallet} Wallet Details\n\n` +
+    `Label: ${wallet.walletName}\n` +
+    `${formatWalletLink('Public Key:', wallet.walletAddress)} \n` +
+    `Balance: 0.0000 SOL ($0.00)\n` +
+    `Status: ${wallet.isDefaultWallet ? 'Default Wallet' : 'Additional Wallet'}`;
+
+  // 显示编辑菜单
+  const keyboard = Markup.inlineKeyboard([
+    [Markup.button.callback(wallet.isDefaultWallet ? `${Emoji.Default} Default Wallet` : `${Emoji.SetDefault} Set as Default`, `${TelegramKey.SetDefaultWallet}:${walletId}`)],
+    [Markup.button.callback(`${Emoji.Withdraw} Withdraw SOL`, `${TelegramKey.Withdraw}:${walletId}`)],
+    [Markup.button.callback(`${Emoji.Delete} Remove Wallet`, `${TelegramKey.DeleteWallet}:${walletId}`)],
+    [Markup.button.callback(BACK_TEXT, `${TelegramKey.Back}`)],
+  ]);
+
+  const options = {
+    parse_mode: 'HTML' as const, // 明确为字面量类型
+    reply_markup: keyboard.reply_markup
+  };
+  // if ('editMessageText' in ctx) {
+  //   await ctx.editMessageText(walletText, options);
+  //   return;
+  // }
+  await ctx.reply(walletText, { ...options, link_preview_options: { is_disabled: true } });
+});
+
+// 处理重命名钱包
+// editWalletScene.action(new RegExp(`^${TelegramKey.RenameWallet}$`), async (ctx) => {
+//   await ctx.answerCbQuery();
+//   await ctx.reply('Please enter a new name for your wallet:');
+//   (ctx.scene.state as any).action = 'rename';
+// });
+
+// 处理设置默认钱包
+buyScene.action(new RegExp(`^${TelegramKey.SetDefaultWallet}:(.+)$`), async (ctx) => {
+  await ctx.answerCbQuery();
+  console.log("SetDefaultWallet")
+  const walletId = ctx.match[1];
+  const user = await userService.findByTgId(ctx.from.id);
+
+  // 先将所有钱包的默认状态设为 false
+  const wallets = await walletService.findWalletsByUserId(user.id);
+  for (const w of wallets) {
+    if (w.id !== walletId) {
+      w.isDefaultWallet = false;
+      await walletService.saveWallet(w);
+    }
+  }
+
+  // 将选中的钱包设为默认
+  const wallet = await walletService.findWalletById(walletId);
+  if (wallet) {
+    wallet.isDefaultWallet = true;
+    await walletService.saveWallet(wallet);
+  }
+
+  await ctx.reply(`${Emoji.Default} Wallet has been set as default`);
+  return ctx.scene.leave();
+});
