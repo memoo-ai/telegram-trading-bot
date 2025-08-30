@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../common/prisma/prisma.service';
 
 @Injectable()
 export class ExchangeRateService {
@@ -41,7 +41,7 @@ export class ExchangeRateService {
     const usdtToSol = 1 / solToUsdt;
 
     // 创建新的汇率记录
-    return this.prisma.exchangeRate.create({
+    return this.prisma.exchange_rate.create({
       data: {
         solToUsdt,
         usdtToSol,
@@ -53,8 +53,8 @@ export class ExchangeRateService {
    * 获取最新的汇率
    */
   async getLatestExchangeRate() {
-    return this.prisma.exchangeRate.findFirst({
-      orderBy: { updatedAt: 'desc' },
+    return this.prisma.exchange_rate.findFirst({
+      orderBy: { updated_at: 'desc' },
     });
   }
 

@@ -1,12 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/prisma"
 }
 
 datasource db {
@@ -14,58 +7,1993 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
+// 新增表
+model exchange_rate {
+  id          String   @id @default(uuid())
+  solToUsdt   Decimal  @db.Decimal(10, 6)
+  usdtToSol   Decimal  @db.Decimal(10, 6)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  
+  @@map("memoo_exchange_rate")
+}
+
+model bot_users {
   id            String    @id @default(uuid())
   tgId          BigInt    @unique
   isBot         Boolean?
-  username      String?
-  firstName     String?
-  lastName      String?
-  inviteCode    String
-  referralCode  String
+  username      String?   @db.VarChar(100)
+  firstName     String?   @db.VarChar(100)
+  lastName      String?   @db.VarChar(100)
+  inviteCode    String    @db.VarChar(50)
+  referralCode  String    @db.VarChar(50)
   agreedToTerms Boolean   @default(false)
   totalInvites  Int       @default(0)
-  wallets       Wallet[]
-  deletedWallets DeleteWallet[]
+  created_at    DateTime? @db.Timestamptz(6)
+  updated_at    DateTime? @db.Timestamptz(6)
+  deleted_at    DateTime? @db.Timestamptz(6)
+  wallets       bot_wallets[]
+  deleted_wallets bot_delete_wallets[]
+
+  @@index([deleted_at], map: "idx_bot_users_deleted_at")
+  @@map("memoo_bot_users")
 }
 
-model Wallet {
-  id               String  @id @default(uuid())
-  walletName       String
-  walletAddress    String
-  walletPrivateKey String
-  isDefaultWallet  Boolean
-  updatedAt        DateTime @default(now()) @updatedAt
-  balance          Int      @default(0)
-  balanceUsd       Int      @default(0)
-  userId           String
-  user             User     @relation(fields: [userId], references: [id])
+model bot_wallets {
+  id                 String    @id @default(uuid())
+  walletName         String    @db.VarChar(100)
+  walletAddress      String    @db.VarChar(255)
+  walletPrivateKey   String    @db.Text
+  isDefaultWallet    Boolean   @default(false)
+  updated_at         DateTime  @default(now()) @db.Timestamptz(6)
+  balance            Decimal   @default(0) @db.Decimal(30, 18)
+  balanceUsd         Decimal   @default(0) @db.Decimal(30, 18)
+  user_id            String
+  user               bot_users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  created_at         DateTime? @db.Timestamptz(6)
+  deleted_at         DateTime? @db.Timestamptz(6)
 
-  @@unique([userId, walletAddress])
+  @@unique([user_id, walletAddress])
+  @@index([user_id], map: "idx_bot_wallets_user_id")
+  @@index([deleted_at], map: "idx_bot_wallets_deleted_at")
+  @@map("memoo_bot_wallets")
 }
 
-model DeleteWallet {
-  id               String  @id @default(uuid())
-  originalWalletId String
-  walletName       String
-  walletAddress    String
-  walletPrivateKey String
-  isDefaultWallet  Boolean
-  deletedAt        DateTime @default(now())
-  originalCreatedAt DateTime
-  balance          Int
-  balanceUsd       Int
-  userId           String
-  user             User     @relation(fields: [userId], references: [id])
+model bot_delete_wallets {
+  id                 String    @id @default(uuid())
+  originalWalletId   String    @db.Uuid
+  walletName         String    @db.VarChar(100)
+  walletAddress      String    @db.VarChar(255)
+  walletPrivateKey   String    @db.Text
+  isDefaultWallet    Boolean   @default(false)
+  deleted_at         DateTime  @default(now()) @db.Timestamptz(6)
+  originalCreatedAt  DateTime  @db.Timestamptz(6)
+  balance            Decimal   @default(0) @db.Decimal(30, 18)
+  balanceUsd         Decimal   @default(0) @db.Decimal(30, 18)
+  user_id            String
+  user               bot_users @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  @@unique([userId, walletAddress])
-  @@map("delete_wallet")
+  @@unique([user_id, walletAddress])
+  @@index([user_id], map: "idx_bot_delete_wallets_user_id")
+  @@index([deleted_at], map: "idx_bot_delete_wallets_deleted_at")
+  @@map("memoo_bot_delete_wallets")
 }
 
-model ExchangeRate {
-  id         String  @id @default(uuid())
-  solToUsdt  Decimal @db.Decimal(10, 6)
-  usdtToSol  Decimal @db.Decimal(10, 6)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @default(now()) @updatedAt
+
+// 同步数据库表
+
+model address_suffix_records {
+  id         BigInt    @id @default(autoincrement())
+  created_at DateTime? @db.Timestamptz(6)
+  updated_at DateTime? @db.Timestamptz(6)
+  deleted_at DateTime? @db.Timestamptz(6)
+  publickey  String?   @unique(map: "uidx_AddressSuffixRecord") @db.VarChar(100)
+  privatekey String?   @db.VarChar(2048)
+  suffix     String?   @db.VarChar(10)
+
+  @@index([deleted_at], map: "idx_address_suffix_records_deleted_at")
+}
+
+model admin_users {
+  id         BigInt    @id @default(autoincrement())
+  created_at DateTime? @db.Timestamptz(6)
+  updated_at DateTime? @db.Timestamptz(6)
+  deleted_at DateTime? @db.Timestamptz(6)
+  login_name String?   @unique(map: "uidx_AdminUser") @db.VarChar(100)
+  password   String?   @db.VarChar(100)
+
+  @@index([deleted_at], map: "idx_admin_users_deleted_at")
+}
+
+model airdrop_claim_records {
+  id               BigInt    @id @default(autoincrement())
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  contract_address String?   @db.VarChar(100)
+  user_address     String?   @db.VarChar(100)
+  balance          Decimal?  @db.Decimal
+  holder_type      String?   @default("other") @db.VarChar(20)
+  eth_amout        Decimal?  @db.Decimal
+  status           String?   @default("init") @db.VarChar(20)
+  tx_hash          String?   @unique(map: "uidx_AirdropClaimRecord") @db.VarChar(100)
+  transaction_time Decimal?  @db.Decimal
+  sell_flag        Boolean?  @default(false)
+  tran_type        String?   @default("other") @db.VarChar(20)
+
+  @@index([deleted_at], map: "idx_airdrop_claim_records_deleted_at")
+  @@index([contract_address], map: "index_AirdropClaimRecord_ContractAddress")
+  @@index([transaction_time], map: "index_AirdropClaimRecord_TransactionTime")
+  @@index([user_address], map: "index_AirdropClaimRecord_UserAddress")
+}
+
+model alert_settings {
+  id                BigInt    @id @default(autoincrement())
+  created_at        DateTime? @db.Timestamptz(6)
+  updated_at        DateTime? @db.Timestamptz(6)
+  deleted_at        DateTime? @db.Timestamptz(6)
+  setting_options   String?   @db.VarChar(100)
+  setting_condition String?   @db.VarChar(100)
+  title             String?   @db.VarChar(100)
+  app_alert         String?   @db.VarChar(200)
+  mobile_alert      String?   @db.VarChar(200)
+  link              String?   @db.VarChar(100)
+
+  @@unique([setting_options, setting_condition], map: "uidx_AlertSetting")
+  @@index([deleted_at], map: "idx_alert_settings_deleted_at")
+}
+
+model bdcv_transction_records {
+  id               BigInt    @id @default(autoincrement())
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  contract_address String?   @db.VarChar(100)
+  user_address     String?   @db.VarChar(100)
+  balance          Decimal?  @db.Decimal
+  holder_type      String?   @default("other") @db.VarChar(20)
+  eth_amout        Decimal?  @db.Decimal
+  status           String?   @default("init") @db.VarChar(20)
+  tx_hash          String?   @unique(map: "uidx_BdcvTransctionRecord") @db.VarChar(100)
+  transaction_time Decimal?  @db.Decimal
+  sell_flag        Boolean?  @default(false)
+  tran_type        String?   @default("other") @db.VarChar(20)
+  cal_vol_flag     String?   @default("0") @db.VarChar(1)
+  tx_hash_join     String?   @db.VarChar(200)
+  token1_sol_price Decimal?  @db.Decimal(32, 16)
+
+  @@index([deleted_at], map: "idx_bdcv_transction_records_deleted_at")
+  @@index([contract_address, cal_vol_flag], map: "index_BdcvTransctionRecord")
+  @@index([transaction_time], map: "index_BdcvTransctionRecord_TransactionTime")
+  @@index([tx_hash_join], map: "index_BdcvTransctionRecord_TxHash")
+  @@index([user_address], map: "index_BdcvTransctionRecord_UserAddress")
+}
+
+model bind_records {
+  id           BigInt    @id @default(autoincrement())
+  created_at   DateTime? @db.Timestamptz(6)
+  updated_at   DateTime? @db.Timestamptz(6)
+  deleted_at   DateTime? @db.Timestamptz(6)
+  twitter_id   String?   @db.VarChar(100)
+  twitter_name String?   @db.VarChar(100)
+  user_address String?   @db.VarChar(100)
+  ticker       String?   @unique(map: "uidx_BindRecordUserAddress") @db.VarChar(100)
+  access_token String?   @db.VarChar(100)
+
+  @@index([access_token], map: "idx_bind_AccessToken")
+  @@index([deleted_at], map: "idx_bind_records_deleted_at")
+  @@index([user_address], map: "idx_bind_userAddress")
+}
+
+model block_transaction_records {
+  id               BigInt    @id @default(autoincrement())
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  signatures       String?   @unique(map: "uniqueIndex_BlockTransactionRecord") @db.VarChar(100)
+  contract_address String?   @db.VarChar(100)
+  bus_type         String?   @db.VarChar(100)
+  count            BigInt?   @default(0)
+  meme             String?   @db.VarChar(100)
+  handle_index     BigInt?   @default(0)
+  block_time       BigInt?   @default(0)
+
+  @@index([deleted_at], map: "idx_block_transaction_records_deleted_at")
+}
+
+model candlestick_cache_records {
+  id          BigInt    @id @default(autoincrement())
+  created_at  DateTime? @db.Timestamptz(6)
+  updated_at  DateTime? @db.Timestamptz(6)
+  deleted_at  DateTime? @db.Timestamptz(6)
+  high_price  Decimal?  @default(0) @db.Decimal
+  low_price   Decimal?  @default(0) @db.Decimal
+  open_price  Decimal?  @default(0) @db.Decimal
+  close_price Decimal?  @default(0) @db.Decimal
+  unix_time   Decimal?  @default(0) @db.Decimal
+  sol_vol     Decimal?  @default(0) @db.Decimal
+  usd_vol     Decimal?  @default(0) @db.Decimal
+  ticker      String?   @db.VarChar(100)
+  time_unit   String?   @db.VarChar(5)
+  from_time   Decimal?  @default(0) @db.Decimal
+  to_time     Decimal?  @default(0) @db.Decimal
+
+  @@unique([unix_time, ticker, time_unit], map: "uidx_CandlestickCacheRecord")
+  @@index([deleted_at], map: "idx_candlestick_cache_records_deleted_at")
+}
+
+model collaboration_events {
+  id               BigInt    @id @default(autoincrement())
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  creator          String?   @db.VarChar(100)
+  background_image String?   @db.VarChar(100)
+  partner_name     String?   @db.VarChar(100)
+
+  @@index([deleted_at], map: "idx_collaboration_events_deleted_at")
+}
+
+model collaboration_events_tasks {
+  id                      BigInt    @id @default(autoincrement())
+  created_at              DateTime? @db.Timestamptz(6)
+  updated_at              DateTime? @db.Timestamptz(6)
+  deleted_at              DateTime? @db.Timestamptz(6)
+  collaboration_events_id Decimal?  @db.Decimal
+  title                   String?   @db.VarChar(100)
+  link                    String?   @db.VarChar(100)
+  reward_type             String?   @db.VarChar(30)
+  reward_points           Decimal?  @default(50) @db.Decimal
+  enable                  Boolean?  @default(false)
+
+  @@index([deleted_at], map: "idx_collaboration_events_tasks_deleted_at")
+}
+
+model creator_ranks {
+  id                                 BigInt    @id @default(autoincrement())
+  created_at                         DateTime? @db.Timestamptz(6)
+  updated_at                         DateTime? @db.Timestamptz(6)
+  deleted_at                         DateTime? @db.Timestamptz(6)
+  address                            String?   @unique(map: "uidx_CreatorRank") @db.VarChar(100)
+  day_time                           BigInt?
+  rank_total_tokens_created          BigInt?
+  rank_total_tokens_with_memoo_score BigInt?
+  rank_ath_market_cap                BigInt?
+  rank_me_moo_score_ath              BigInt?
+  rank_ath_holders                   BigInt?
+  rank_cumulative_mcap               BigInt?
+  rank_cumulative_ath_mcap           BigInt?
+  rank_cumulative_holders            BigInt?
+  rank_holder_grow7_days             BigInt?
+  rank_market_cap_growth7_days       BigInt?
+
+  @@index([deleted_at], map: "idx_creator_ranks_deleted_at")
+}
+
+model daily_tasks {
+  id               BigInt    @id @default(autoincrement())
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  creator          String?   @db.VarChar(100)
+  twitter_post_url String?   @db.VarChar(100)
+  memoo_points     Decimal?  @default(5) @db.Decimal
+  enable           Boolean?  @default(false)
+
+  @@index([deleted_at], map: "idx_daily_tasks_deleted_at")
+}
+
+model fee_upload_records {
+  id         BigInt    @id @default(autoincrement())
+  created_at DateTime? @db.Timestamptz(6)
+  updated_at DateTime? @db.Timestamptz(6)
+  deleted_at DateTime? @db.Timestamptz(6)
+  week       String?   @db.VarChar(100)
+  file_url   String?   @db.VarChar(100)
+
+  @@index([deleted_at], map: "idx_fee_upload_records_deleted_at")
+}
+
+model file_downlod_records {
+  id              BigInt    @id @default(autoincrement())
+  created_at      DateTime? @db.Timestamptz(6)
+  updated_at      DateTime? @db.Timestamptz(6)
+  deleted_at      DateTime? @db.Timestamptz(6)
+  bucket_file_key String?   @db.VarChar(200)
+
+  @@index([deleted_at], map: "idx_file_downlod_records_deleted_at")
+}
+
+model follow_records {
+  id                BigInt    @id @default(autoincrement())
+  created_at        DateTime? @db.Timestamptz(6)
+  updated_at        DateTime? @db.Timestamptz(6)
+  deleted_at        DateTime? @db.Timestamptz(6)
+  following_twitter String?   @db.VarChar(100)
+  user_address      String?   @db.VarChar(100)
+  screen_name       String?   @db.VarChar(100)
+  ticker            String?   @db.VarChar(100)
+  bind_type         String?   @db.VarChar(100)
+  cal_flag          String?   @default("0") @db.VarChar(1)
+
+  @@unique([following_twitter, user_address, ticker], map: "uniIdx_FollowRecord_Ticker")
+  @@index([deleted_at], map: "idx_follow_records_deleted_at")
+  @@index([cal_flag], map: "index_FollowRecordCalFlag")
+}
+
+model ido_claim_records {
+  id               BigInt    @id @default(autoincrement())
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  contract_address String?   @db.VarChar(100)
+  user_address     String?   @db.VarChar(100)
+  balance          Decimal?  @db.Decimal
+  holder_type      String?   @default("other") @db.VarChar(20)
+  eth_amout        Decimal?  @db.Decimal
+  status           String?   @default("init") @db.VarChar(20)
+  tx_hash          String?   @unique(map: "uidx_IdoClaimRecord") @db.VarChar(100)
+  transaction_time Decimal?  @db.Decimal
+  sell_flag        Boolean?  @default(false)
+  tran_type        String?   @default("other") @db.VarChar(20)
+
+  @@index([deleted_at], map: "idx_ido_claim_records_deleted_at")
+  @@index([contract_address], map: "index_IdoClaimRecord_ContractAddress")
+  @@index([transaction_time], map: "index_IdoClaimRecord_TransactionTime")
+  @@index([user_address], map: "index_IdoClaimRecord_UserAddress")
+}
+
+model invitation_code_records {
+  id              BigInt    @id @default(autoincrement())
+  created_at      DateTime? @db.Timestamptz(6)
+  updated_at      DateTime? @db.Timestamptz(6)
+  deleted_at      DateTime? @db.Timestamptz(6)
+  address         String?   @unique(map: "uniIdx_InvitationCodeRecord_Address") @db.VarChar(100)
+  invitation_code String?   @unique(map: "uniIdx_InvitationCodeRecord_InvitationCode") @db.VarChar(100)
+
+  @@index([deleted_at], map: "idx_invitation_code_records_deleted_at")
+}
+
+model invitation_records {
+  id                 BigInt    @id @default(autoincrement())
+  created_at         DateTime? @db.Timestamptz(6)
+  updated_at         DateTime? @db.Timestamptz(6)
+  deleted_at         DateTime? @db.Timestamptz(6)
+  address            String?   @db.VarChar(100)
+  invitation_address String?   @db.VarChar(100)
+  invitation_code    String?   @db.VarChar(100)
+
+  @@index([address], map: "idx_InvitationRecord_Address")
+  @@index([invitation_code], map: "idx_InvitationRecord_InvitationCode")
+  @@index([invitation_address], map: "idx_InvitationRecord_invitationAddress")
+  @@index([deleted_at], map: "idx_invitation_records_deleted_at")
+}
+
+model lp_fee_ratio_records {
+  id               BigInt    @id @default(autoincrement())
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  ticker           String?   @db.VarChar(100)
+  user_address     String?   @db.VarChar(100)
+  contract_address String?   @db.VarChar(100)
+  lp_fee_ratio     Decimal?  @db.Decimal
+  ido_time         DateTime? @db.Timestamptz(6)
+
+  @@unique([ticker, user_address, contract_address], map: "uidx_LpFeeRatioRecord_T")
+  @@index([deleted_at], map: "idx_lp_fee_ratio_records_deleted_at")
+}
+
+model lp_fee_ratio_week_records {
+  id               BigInt    @id @default(autoincrement())
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  ticker           String?   @db.VarChar(100)
+  user_address     String?   @db.VarChar(100)
+  contract_address String?   @db.VarChar(100)
+  lp_fee_ratio     Decimal?  @db.Decimal
+  week             String?   @db.VarChar(100)
+  ido_time         DateTime? @db.Timestamptz(6)
+
+  @@unique([ticker, user_address, contract_address, week], map: "uidx_LpFeeRatioWeekRecord")
+  @@index([deleted_at], map: "idx_lp_fee_ratio_week_records_deleted_at")
+}
+
+model lp_fee_sum_ratio_records {
+  id               BigInt    @id @default(autoincrement())
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  ticker           String?   @db.VarChar(100)
+  contract_address String?   @db.VarChar(100)
+  user_address     String?   @db.VarChar(100)
+  lp_fee_ratio     Decimal?  @db.Decimal
+  ido_time         DateTime? @db.Timestamptz(6)
+
+  @@unique([ticker, contract_address], map: "uidx_LpFeeSumRatioRecord_T")
+  @@index([deleted_at], map: "idx_lp_fee_sum_ratio_records_deleted_at")
+}
+
+model meme_block_syns {
+  id                     BigInt    @id @default(autoincrement())
+  created_at             DateTime? @db.Timestamptz(6)
+  updated_at             DateTime? @db.Timestamptz(6)
+  deleted_at             DateTime? @db.Timestamptz(6)
+  current_handle_tx_hash String?   @db.VarChar(200)
+  unique_code            String?   @unique(map: "index_meme_MemeBlockSyn_UniqueCode") @db.VarChar(30)
+  program_id             String?   @db.VarChar(200)
+  rpc_url                String?   @db.VarChar(200)
+
+  @@index([deleted_at], map: "idx_meme_block_syns_deleted_at")
+}
+
+model meme_candlesticks {
+  id               BigInt    @id @default(autoincrement())
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  contract_address String?   @db.VarChar(100)
+  record_timestamp DateTime? @db.Timestamptz(6)
+  sol_vol          Decimal?  @default(0) @db.Decimal(32, 16)
+  usd_vol          Decimal?  @default(0) @db.Decimal(32, 16)
+  price            Decimal?  @db.Decimal(32, 16)
+  usd_price        Decimal?  @default(0) @db.Decimal(32, 16)
+  holders          BigInt?   @default(0)
+
+  @@index([contract_address, record_timestamp], map: "idx_MemeCandlestick")
+  @@index([deleted_at], map: "idx_meme_candlesticks_deleted_at")
+}
+
+model meme_chain_ido_buy_records {
+  id                    String    @id
+  created_at            DateTime? @db.Timestamptz(6)
+  updated_at            DateTime? @db.Timestamptz(6)
+  deleted_at            DateTime? @db.Timestamptz(6)
+  meme                  String?
+  user                  String?
+  amount                Decimal?  @db.Decimal
+  count                 Decimal?  @db.Decimal
+  block_number          BigInt?
+  transaction_hash      String?
+  transaction_index     BigInt?
+  transaction_log_index BigInt?
+  timestamp             BigInt?
+  status                String?   @default("init") @db.VarChar(30)
+  source                String?   @default("Ethereum") @db.VarChar(30)
+  claim_type            String?   @default("IDO_CLAIM") @db.VarChar(30)
+  person_score          Decimal?  @default(0) @db.Decimal
+  share_fee             Decimal?  @db.Decimal
+
+  @@index([meme], map: "idx_MemeChainIdoBuyRecord_meme")
+  @@index([user], map: "idx_MemeChainIdoBuyRecord_user")
+  @@index([deleted_at], map: "idx_meme_chain_ido_buy_records_deleted_at")
+}
+
+model meme_chain_ido_claimed_records {
+  id                    String    @id
+  created_at            DateTime? @db.Timestamptz(6)
+  updated_at            DateTime? @db.Timestamptz(6)
+  deleted_at            DateTime? @db.Timestamptz(6)
+  meme                  String?
+  user                  String?
+  count                 Decimal?  @db.Decimal
+  block_number          BigInt?
+  transaction_hash      String?
+  transaction_index     BigInt?
+  transaction_log_index BigInt?
+  timestamp             BigInt?
+  status                String?   @default("init") @db.VarChar(30)
+  source                String?   @default("Ethereum") @db.VarChar(30)
+  claim_type            String?   @default("IDO_CLAIM") @db.VarChar(30)
+  sol_balance           Decimal?  @db.Decimal
+  period                String?   @default("0") @db.VarChar(20)
+
+  @@index([deleted_at], map: "idx_meme_chain_ido_claimed_records_deleted_at")
+}
+
+model meme_chain_ido_end_records {
+  id                    String    @id
+  created_at            DateTime? @db.Timestamptz(6)
+  updated_at            DateTime? @db.Timestamptz(6)
+  deleted_at            DateTime? @db.Timestamptz(6)
+  meme                  String?
+  token_b               String?
+  amount_meme           Decimal?  @db.Decimal
+  amount_token_b        Decimal?  @db.Decimal
+  block_number          BigInt?
+  transaction_hash      String?
+  transaction_index     BigInt?
+  transaction_log_index BigInt?
+  timestamp             BigInt?
+  status                String?   @default("init") @db.VarChar(30)
+  source                String?   @default("Ethereum") @db.VarChar(30)
+  claim_type            String?   @default("IDO_CLAIM") @db.VarChar(30)
+  lp_token_address      String?
+
+  @@index([deleted_at], map: "idx_meme_chain_ido_end_records_deleted_at")
+}
+
+model meme_chain_records {
+  id                                 String    @id
+  created_at                         DateTime? @db.Timestamptz(6)
+  updated_at                         DateTime? @db.Timestamptz(6)
+  deleted_at                         DateTime? @db.Timestamptz(6)
+  creator_count                      Decimal?  @db.Decimal
+  platform_count                     Decimal?  @db.Decimal
+  creator                            String?   @db.VarChar(100)
+  default_admin                      String?   @db.VarChar(100)
+  pauser                             String?   @db.VarChar(100)
+  minter                             String?   @db.VarChar(100)
+  name                               String?   @db.VarChar(64)
+  symbol                             String?   @db.VarChar(30)
+  total_supply                       Decimal?  @db.Decimal
+  ido_price                          Decimal?  @db.Decimal
+  ido_creator_limit                  Decimal?  @db.Decimal
+  liquidity_holder                   String?   @db.VarChar(100)
+  liquidity_locker                   String?   @db.VarChar(100)
+  platform_fee_create_meme_pay_token String?   @db.VarChar(100)
+  ido_creator_buy_limit              Decimal?  @db.Decimal
+  ido_user_buy_limit                 Decimal?  @db.Decimal
+  creator_allocation                 Decimal?  @db.Decimal
+  ido_allocation                     Decimal?  @db.Decimal
+  lp_allocation                      Decimal?  @db.Decimal
+  airdrop_allocation                 Decimal?  @db.Decimal
+  platform_allocation                Decimal?  @db.Decimal
+  block_number                       BigInt?
+  transaction_hash                   String?
+  transaction_index                  BigInt?
+  transaction_log_index              BigInt?
+  timestamp                          BigInt?
+  status                             String?   @default("init") @db.VarChar(30)
+  source                             String?   @default("Ethereum") @db.VarChar(30)
+  platform_address                   String?   @db.VarChar(100)
+  contract_address                   String?   @db.VarChar(100)
+  mint_auth_disable                  Boolean?  @default(false)
+
+  @@index([deleted_at], map: "idx_meme_chain_records_deleted_at")
+}
+
+model meme_collections {
+  id              BigInt    @id @default(autoincrement())
+  created_at      DateTime? @db.Timestamptz(6)
+  updated_at      DateTime? @db.Timestamptz(6)
+  deleted_at      DateTime? @db.Timestamptz(6)
+  ticker          String?   @db.VarChar(100)
+  user_address    String?   @db.VarChar(100)
+  collection_flag Boolean?  @default(false)
+
+  @@unique([ticker, user_address], map: "uidx_MemeCollection_Ticker")
+  @@index([deleted_at], map: "idx_meme_collections_deleted_at")
+}
+
+model meme_dictionaries {
+  id               BigInt    @id @default(autoincrement())
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  dictionary_code  String?   @unique(map: "uidx_MemeDictionary") @db.VarChar(100)
+  dictionary_value String?   @db.VarChar(100)
+
+  @@index([deleted_at], map: "idx_meme_dictionaries_deleted_at")
+}
+
+model meme_highlow_prices {
+  id                       BigInt    @id @default(autoincrement())
+  created_at               DateTime? @db.Timestamptz(6)
+  updated_at               DateTime? @db.Timestamptz(6)
+  deleted_at               DateTime? @db.Timestamptz(6)
+  contract_address         String?   @unique(map: "index_meme_Timestamp") @db.VarChar(100)
+  high_price               Decimal?  @default(0) @db.Decimal(32, 16)
+  low_price                Decimal?  @default(0) @db.Decimal(32, 16)
+  current_price            Decimal?  @default(0) @db.Decimal(32, 16)
+  high_timestamp           DateTime? @db.Timestamptz(6)
+  low_timestamp            DateTime? @db.Timestamptz(6)
+  token1_sol_price         Decimal?  @default(0) @db.Decimal(32, 16)
+  last_sol_price           Decimal?  @default(0) @db.Decimal(32, 16)
+  last_sol_price_timestamp DateTime? @db.Timestamptz(6)
+  price                    Decimal?  @db.Decimal(32, 16)
+  price_two_hour           Decimal?  @db.Decimal(32, 16)
+  price_twenty_four_hour   Decimal?  @db.Decimal(32, 16)
+
+  @@index([deleted_at], map: "idx_meme_highlow_prices_deleted_at")
+}
+
+model meme_holders {
+  id               BigInt    @id @default(autoincrement())
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  contract_address String?   @db.VarChar(100)
+  user_address     String?   @db.VarChar(100)
+  balance          Decimal?  @db.Decimal
+  eth_amout        Decimal?  @db.Decimal
+  claim_balance    Decimal?  @db.Decimal
+  creator_balance  Decimal?  @db.Decimal
+  time_stamp_val   BigInt?
+
+  @@unique([contract_address, user_address], map: "index_meme_contractAddress_userAddress")
+  @@index([deleted_at], map: "idx_meme_holders_deleted_at")
+}
+
+model meme_init_files {
+  id         BigInt    @id @default(autoincrement())
+  created_at DateTime? @db.Timestamptz(6)
+  updated_at DateTime? @db.Timestamptz(6)
+  deleted_at DateTime? @db.Timestamptz(6)
+  file_name  String?   @db.VarChar(100)
+
+  @@index([deleted_at], map: "idx_meme_init_files_deleted_at")
+}
+
+model meme_mutex_locks {
+  id         BigInt    @id @default(autoincrement())
+  created_at DateTime? @db.Timestamptz(6)
+  updated_at DateTime? @db.Timestamptz(6)
+  deleted_at DateTime? @db.Timestamptz(6)
+  table_name String?   @unique(map: "udx_MemeMutexLock") @db.VarChar(100)
+  status     String?   @db.VarChar(1)
+
+  @@index([deleted_at], map: "idx_meme_mutex_locks_deleted_at")
+}
+
+model meme_news {
+  id               BigInt    @id @default(autoincrement())
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  creator          String?   @db.VarChar(100)
+  new_title        String?   @db.VarChar(100)
+  new_link         String?   @db.VarChar(100)
+  alert_message    String?   @db.VarChar(100)
+  background_image String?   @db.VarChar(100)
+  enable           Boolean?  @default(false)
+
+  @@index([deleted_at], map: "idx_meme_news_deleted_at")
+}
+
+model meme_pairs {
+  id                     BigInt    @id @default(autoincrement())
+  created_at             DateTime? @db.Timestamptz(6)
+  updated_at             DateTime? @db.Timestamptz(6)
+  deleted_at             DateTime? @db.Timestamptz(6)
+  contract_address       String?   @db.VarChar(100)
+  pair                   String?   @db.VarChar(100)
+  token_b                String?   @db.VarChar(100)
+  amount_meme            Decimal?  @db.Decimal
+  amount_token_b         Decimal?  @db.Decimal
+  lp_token_address       String?   @db.VarChar(100)
+  current_handle_tx_hash String?   @default("") @db.VarChar(200)
+
+  @@unique([contract_address, pair], map: "uidx_ContractAddress_Pair")
+  @@index([deleted_at], map: "idx_meme_pairs_deleted_at")
+  @@index([lp_token_address], map: "uidx_MemePair_LpTokenAddress")
+}
+
+model meme_participates {
+  id               BigInt    @id @default(autoincrement())
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  contract_address String?   @db.VarChar(100)
+  user_address     String?   @db.VarChar(100)
+  balance          Decimal?  @db.Decimal
+  eth_amout        Decimal?  @db.Decimal
+  re_fund          Boolean?  @default(false)
+  claim            Boolean?  @default(false)
+  share_fee        Decimal?  @db.Decimal
+  cal_flag         String?   @default("0") @db.VarChar(1)
+
+  @@unique([contract_address, user_address], map: "uniqueIndex_MemeParticipate")
+  @@index([deleted_at], map: "idx_meme_participates_deleted_at")
+  @@index([cal_flag], map: "index_MemeParticipate_CalFlag")
+}
+
+model meme_prices {
+  id               BigInt    @id @default(autoincrement())
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  contract_address String?   @db.VarChar(100)
+  price            Decimal?  @db.Decimal(32, 16)
+  holders          BigInt?   @default(0)
+  time_stamp_val   BigInt?
+
+  @@unique([contract_address, time_stamp_val], map: "index_meme_TimeStampVal")
+  @@index([deleted_at], map: "idx_meme_prices_deleted_at")
+}
+
+model meme_score_configs {
+  id            BigInt    @id @default(autoincrement())
+  created_at    DateTime? @db.Timestamptz(6)
+  updated_at    DateTime? @db.Timestamptz(6)
+  deleted_at    DateTime? @db.Timestamptz(6)
+  score_name    String?   @db.VarChar(100)
+  display_name  String?   @db.VarChar(100)
+  score_sort    BigInt?
+  direction     String?   @default("0") @db.VarChar(1)
+  show_flag     Boolean?  @default(true)
+  total_score   BigInt?   @default(6)
+  luanched_flag String?   @default("0") @db.VarChar(1)
+  protocol_type String?   @default("") @db.VarChar(30)
+
+  @@index([deleted_at], map: "idx_meme_score_configs_deleted_at")
+  @@index([score_name], map: "index_MemeScoreConfig")
+}
+
+model meme_score_grades {
+  id              BigInt    @id @default(autoincrement())
+  created_at      DateTime? @db.Timestamptz(6)
+  updated_at      DateTime? @db.Timestamptz(6)
+  deleted_at      DateTime? @db.Timestamptz(6)
+  config_id       BigInt?
+  start_condition BigInt?
+  end_condition   BigInt?
+  score           BigInt?
+
+  @@unique([config_id, score], map: "udx_MemeScoreGrade")
+  @@index([deleted_at], map: "idx_meme_score_grades_deleted_at")
+}
+
+model meme_tools {
+  id           BigInt    @id @default(autoincrement())
+  created_at   DateTime? @db.Timestamptz(6)
+  updated_at   DateTime? @db.Timestamptz(6)
+  deleted_at   DateTime? @db.Timestamptz(6)
+  tool_url     String?   @db.VarChar(100)
+  tool_sort    BigInt?
+  meme_address String?   @db.VarChar(100)
+
+  @@index([deleted_at], map: "idx_meme_tools_deleted_at")
+}
+
+model meme_transaction_records {
+  id                    BigInt    @id @default(autoincrement())
+  created_at            DateTime? @db.Timestamptz(6)
+  updated_at            DateTime? @db.Timestamptz(6)
+  deleted_at            DateTime? @db.Timestamptz(6)
+  contract_address      String?   @db.VarChar(100)
+  user_address          String?   @db.VarChar(100)
+  balance               Decimal?  @db.Decimal
+  holder_type           String?   @default("other") @db.VarChar(20)
+  eth_amout             Decimal?  @db.Decimal
+  status                String?   @default("init") @db.VarChar(20)
+  tx_hash               String?   @unique(map: "uidx_MemeTransactionRecord_TxHash") @db.VarChar(100)
+  transaction_time      Decimal?  @db.Decimal
+  sell_flag             Boolean?  @default(false)
+  tran_type             String?   @default("other") @db.VarChar(20)
+  cal_transactions_flag String?   @default("0") @db.VarChar(1)
+
+  @@index([deleted_at], map: "idx_meme_transaction_records_deleted_at")
+  @@index([contract_address, user_address, transaction_time, cal_transactions_flag], map: "index_meme_Trans_userAddress_tyep")
+}
+
+model meme_transaction_split_records {
+  id               BigInt    @id @default(autoincrement())
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  sort_id          Decimal?  @db.Decimal
+  contract_address String?   @db.VarChar(100)
+  user_address     String?   @db.VarChar(100)
+  balance          Decimal?  @db.Decimal
+  holder_type      String?   @default("other") @db.VarChar(20)
+  eth_amout        Decimal?  @db.Decimal
+  status           String?   @default("init") @db.VarChar(20)
+  tx_hash          String?   @db.VarChar(100)
+  transaction_time Decimal?  @db.Decimal
+  sell_flag        Boolean?  @default(false)
+  tran_type        String?   @default("other") @db.VarChar(20)
+
+  @@unique([sort_id, contract_address], map: "uidx_MemeTransactionSplitRecord")
+  @@index([deleted_at], map: "idx_meme_transaction_split_records_deleted_at")
+  @@index([user_address], map: "index_MemeTransactionSplitRecord_UserAddress")
+  @@index([transaction_time], map: "index_MemeTransactionSplitRecord_time")
+}
+
+model meme_unlock_periods {
+  id                    BigInt    @id @default(autoincrement())
+  created_at            DateTime? @db.Timestamptz(6)
+  updated_at            DateTime? @db.Timestamptz(6)
+  deleted_at            DateTime? @db.Timestamptz(6)
+  index                 BigInt?
+  period_type           String?
+  block_number          BigInt?
+  transaction_hash      String?
+  transaction_index     BigInt?
+  transaction_log_index BigInt?
+  timestamp             BigInt?
+  unlock_rate           String?
+  value                 String?
+  status                String?   @default("init") @db.VarChar(30)
+  chain                 String?   @default("Ethereum")
+
+  @@unique([index, chain], map: "uidx_MemeUnlockPeriods_chain")
+  @@index([deleted_at], map: "idx_meme_unlock_periods_deleted_at")
+}
+
+model meme_volumes {
+  id               BigInt    @id @default(autoincrement())
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  contract_address String?   @db.VarChar(100)
+  volume           Decimal?  @default(0) @db.Decimal
+  time_stamp_val   BigInt?
+  hour_volume      Decimal?  @default(0) @db.Decimal
+  transctions      Decimal?  @db.Decimal
+  hour_transctions Decimal?  @db.Decimal
+
+  @@unique([contract_address, time_stamp_val], map: "index_MemeVolume_TimeStampVal")
+  @@index([deleted_at], map: "idx_meme_volumes_deleted_at")
+}
+
+model memoo_configs {
+  id                                BigInt    @id @default(autoincrement())
+  created_at                        DateTime? @db.Timestamptz(6)
+  updated_at                        DateTime? @db.Timestamptz(6)
+  deleted_at                        DateTime? @db.Timestamptz(6)
+  uuid                              String?   @db.VarChar(50)
+  meme_total_supply                 String?   @db.VarChar(50)
+  meme_ido_user_buy_limit           String?   @db.VarChar(50)
+  meme_ido_price                    String?   @db.VarChar(50)
+  chain                             String?   @db.VarChar(50)
+  token_allocation_ido              String?   @db.VarChar(50)
+  token_allocation_lp               String?   @db.VarChar(50)
+  token_allocation_airdrop          String?   @db.VarChar(50)
+  token_allocation_platform         String?   @db.VarChar(50)
+  ido_user_buy_denom_min            Decimal?  @db.Decimal
+  ido_creator_buy_limit             String?   @db.VarChar(50)
+  common_lookup_table               String?   @db.VarChar(100)
+  admin                             String?   @db.VarChar(100)
+  platform_fee_rate_ido             String?   @db.VarChar(50)
+  platform_fee_rate_denominator_ido String?   @db.VarChar(50)
+  token_allocation_creator          String?   @db.VarChar(50)
+  airdrop_price                     String?   @db.VarChar(50)
+  platform_fee_create_meme_sol      String?   @db.VarChar(50)
+  share_create_fee_number           String?   @db.VarChar(50)
+
+  @@unique([uuid, chain], map: "uidx_MemooConfigUuid")
+  @@index([deleted_at], map: "idx_memoo_configs_deleted_at")
+}
+
+model page_view_operate_records {
+  id         BigInt    @id @default(autoincrement())
+  created_at DateTime? @db.Timestamptz(6)
+  updated_at DateTime? @db.Timestamptz(6)
+  deleted_at DateTime? @db.Timestamptz(6)
+  address    String?   @db.VarChar(100)
+  requst_uri String?   @db.VarChar(100)
+  ticker     String?   @db.VarChar(50)
+  cal_flag   String?   @default("0") @db.VarChar(1)
+
+  @@index([deleted_at], map: "idx_page_view_operate_records_deleted_at")
+  @@index([ticker, cal_flag], map: "index_PageViewOperateRecord")
+  @@index([address], map: "index_PageViewOperateRecord_address")
+}
+
+model pinned_twitter_data {
+  id                     BigInt    @id @default(autoincrement())
+  created_at             DateTime? @db.Timestamptz(6)
+  updated_at             DateTime? @db.Timestamptz(6)
+  deleted_at             DateTime? @db.Timestamptz(6)
+  ticker                 String?   @db.VarChar(100)
+  profile_image_url      String?   @db.VarChar(300)
+  name                   String?   @db.VarChar(100)
+  username               String?   @db.VarChar(100)
+  verified               Boolean?  @default(false)
+  text                   String?
+  url                    String?   @db.VarChar(200)
+  twitter_msg_created_at DateTime? @db.Timestamptz(6)
+  impression_count       BigInt?   @default(0)
+  reply_count            BigInt?   @default(0)
+  retweet_count          BigInt?   @default(0)
+  quote_count            BigInt?   @default(0)
+  like_count             BigInt?   @default(0)
+  bookmark_count         BigInt?   @default(0)
+  repost_count           BigInt?   @default(0)
+  time_stamp_val         BigInt?   @default(0)
+  pinned_twitter_url     String?   @db.VarChar(200)
+  status                 String?   @default("init") @db.VarChar(20)
+
+  @@index([deleted_at], map: "idx_pinned_twitter_data_deleted_at")
+  @@index([ticker], map: "index_PinnedTwitterData_ticker")
+}
+
+model pinned_twitter_data_baks {
+  id                     BigInt    @id @default(autoincrement())
+  created_at             DateTime? @db.Timestamptz(6)
+  updated_at             DateTime? @db.Timestamptz(6)
+  deleted_at             DateTime? @db.Timestamptz(6)
+  ticker                 String?   @db.VarChar(100)
+  profile_image_url      String?   @db.VarChar(300)
+  name                   String?   @db.VarChar(100)
+  username               String?   @db.VarChar(100)
+  verified               Boolean?  @default(false)
+  text                   String?
+  url                    String?   @db.VarChar(200)
+  twitter_msg_created_at DateTime? @db.Timestamptz(6)
+  impression_count       BigInt?   @default(0)
+  reply_count            BigInt?   @default(0)
+  retweet_count          BigInt?   @default(0)
+  quote_count            BigInt?   @default(0)
+  like_count             BigInt?   @default(0)
+  bookmark_count         BigInt?   @default(0)
+  repost_count           BigInt?   @default(0)
+  time_stamp_val         BigInt?   @default(0)
+  pinned_twitter_url     String?   @db.VarChar(200)
+  status                 String?   @default("init") @db.VarChar(20)
+
+  @@index([deleted_at], map: "idx_pinned_twitter_data_baks_deleted_at")
+}
+
+model project_baks {
+  id              BigInt    @id @default(autoincrement())
+  created_at      DateTime? @db.Timestamptz(6)
+  updated_at      DateTime? @db.Timestamptz(6)
+  deleted_at      DateTime? @db.Timestamptz(6)
+  ticker          String?   @db.VarChar(100)
+  project_name    String?   @db.VarChar(100)
+  description     String?
+  introduction    String?   @db.VarChar(2048)
+  twitter         String?   @db.VarChar(100)
+  website         String?   @db.VarChar(200)
+  telegram        String?   @db.VarChar(100)
+  pinned_twitter  String?   @db.VarChar(100)
+  discord         String?   @db.VarChar(100)
+  creator_address String?   @db.VarChar(100)
+  twitter_id      String?   @db.VarChar(100)
+  next_token      String?   @db.VarChar(100)
+  creator_twitter String?   @db.VarChar(100)
+
+  @@index([deleted_at], map: "idx_project_baks_deleted_at")
+}
+
+model project_banners {
+  id         BigInt    @id @default(autoincrement())
+  created_at DateTime? @db.Timestamptz(6)
+  updated_at DateTime? @db.Timestamptz(6)
+  deleted_at DateTime? @db.Timestamptz(6)
+  project_id BigInt?
+  banner_url String?   @db.VarChar(100)
+
+  @@index([project_id], map: "idx_ProjectBanner_id")
+  @@index([deleted_at], map: "idx_project_banners_deleted_at")
+}
+
+model projects {
+  id              BigInt    @id @default(autoincrement())
+  created_at      DateTime? @db.Timestamptz(6)
+  updated_at      DateTime? @db.Timestamptz(6)
+  deleted_at      DateTime? @db.Timestamptz(6)
+  ticker          String?   @unique(map: "uidx_project_ticker") @db.VarChar(100)
+  project_name    String?   @db.VarChar(100)
+  description     String?
+  introduction    String?   @db.VarChar(2048)
+  twitter         String?   @db.VarChar(100)
+  website         String?   @db.VarChar(200)
+  telegram        String?   @db.VarChar(100)
+  pinned_twitter  String?   @db.VarChar(100)
+  discord         String?   @db.VarChar(100)
+  creator_address String?   @db.VarChar(100)
+  twitter_id      String?   @db.VarChar(100)
+  next_token      String?   @db.VarChar(100)
+  creator_twitter String?   @db.VarChar(100)
+
+  @@index([deleted_at], map: "idx_projects_deleted_at")
+  @@index([project_name], map: "index_project_ProjectName")
+}
+
+model ranked_scores {
+  id               BigInt    @id @default(autoincrement())
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  rank             Decimal?  @default(0) @db.Decimal
+  score            Decimal?  @default(0) @db.Decimal
+  invitation_score Decimal?  @default(0) @db.Decimal
+  invitations      Decimal?  @default(0) @db.Decimal
+  address          String?   @unique(map: "uidx_RankedScores") @db.VarChar(100)
+
+  @@index([deleted_at], map: "idx_ranked_scores_deleted_at")
+}
+
+model session_data {
+  id                BigInt    @id @default(autoincrement())
+  created_at        DateTime? @db.Timestamptz(6)
+  updated_at        DateTime? @db.Timestamptz(6)
+  deleted_at        DateTime? @db.Timestamptz(6)
+  request_token     String?   @db.VarChar(100)
+  request_secret    String?   @db.VarChar(100)
+  address           String?   @db.VarChar(100)
+  following_twitter String?   @db.VarChar(100)
+  ticker            String?   @db.VarChar(100)
+  bus_type          String?   @db.VarChar(20)
+  app_client_id     String?   @db.VarChar(100)
+
+  @@index([request_token], map: "idx_requestToken")
+  @@index([deleted_at], map: "idx_session_data_deleted_at")
+}
+
+model solana_config_meme_baks {
+  id               BigInt    @id @default(autoincrement())
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  publickey        String?   @db.VarChar(500)
+  privatekey       String?   @db.VarChar(2048)
+  minta_publickey  String?   @db.VarChar(500)
+  minta_privatekey String?   @db.VarChar(2048)
+  ticker           String?   @db.VarChar(100)
+  status           String?   @default("init") @db.VarChar(30)
+
+  @@index([deleted_at], map: "idx_solana_config_meme_baks_deleted_at")
+}
+
+model solana_config_memes {
+  id               BigInt    @id @default(autoincrement())
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  publickey        String?   @db.VarChar(500)
+  privatekey       String?   @db.VarChar(2048)
+  minta_publickey  String?   @db.VarChar(500)
+  minta_privatekey String?   @db.VarChar(2048)
+  ticker           String?   @unique(map: "uidx_SolanaConfigMeme_ticker") @db.VarChar(100)
+  status           String?   @default("init") @db.VarChar(30)
+
+  @@index([deleted_at], map: "idx_solana_config_memes_deleted_at")
+}
+
+model special_powers {
+  id                 BigInt    @id @default(autoincrement())
+  created_at         DateTime? @db.Timestamptz(6)
+  updated_at         DateTime? @db.Timestamptz(6)
+  deleted_at         DateTime? @db.Timestamptz(6)
+  special_powers_val String?   @db.VarChar(500)
+  valid_date         DateTime? @db.Timestamptz(6)
+
+  @@index([deleted_at], map: "idx_special_powers_deleted_at")
+  @@index([special_powers_val], map: "idx_special_powers_special_powers_val")
+}
+
+model static_follow_records {
+  id              BigInt    @id @default(autoincrement())
+  created_at      DateTime? @db.Timestamptz(6)
+  updated_at      DateTime? @db.Timestamptz(6)
+  deleted_at      DateTime? @db.Timestamptz(6)
+  screen_name     String?   @unique(map: "uniIdx_StaticFollowRecord") @db.VarChar(100)
+  followers_count BigInt?
+  following_count BigInt?
+  tweet_count     BigInt?
+  listed_count    BigInt?
+  like_count      BigInt?
+  time_stamp_val  BigInt?   @default(0)
+
+  @@index([deleted_at], map: "idx_static_follow_records_deleted_at")
+}
+
+model task_exce_records {
+  id         BigInt    @id @default(autoincrement())
+  created_at DateTime? @db.Timestamptz(6)
+  updated_at DateTime? @db.Timestamptz(6)
+  deleted_at DateTime? @db.Timestamptz(6)
+  task_code  String?   @unique(map: "uidx_TaskExceRecord") @db.VarChar(100)
+
+  @@index([deleted_at], map: "idx_task_exce_records_deleted_at")
+}
+
+model task_records {
+  id                BigInt    @id @default(autoincrement())
+  created_at        DateTime? @db.Timestamptz(6)
+  updated_at        DateTime? @db.Timestamptz(6)
+  deleted_at        DateTime? @db.Timestamptz(6)
+  task_code         String?   @db.VarChar(100)
+  task_name         String?   @db.VarChar(100)
+  task_uri          String?   @db.VarChar(100)
+  task_sort         Decimal?  @db.Decimal
+  task_score        Decimal?  @db.Decimal
+  manual            Boolean?  @default(false)
+  cal_conditions    Decimal?  @default(0) @db.Decimal
+  join_cal          Boolean?  @default(false)
+  popup_task_name   String?   @db.VarChar(100)
+  popup_button_name String?   @db.VarChar(100)
+  is_tg_task        Boolean?  @default(false)
+  group_chat_id     Decimal?  @db.Decimal
+  environment       String?   @db.VarChar(30)
+
+  @@unique([task_code, environment], map: "uidx_TaskRecord_environment")
+  @@index([deleted_at], map: "idx_task_records_deleted_at")
+}
+
+model team_quota_record_baks {
+  id             BigInt    @id @default(autoincrement())
+  created_at     DateTime? @db.Timestamptz(6)
+  updated_at     DateTime? @db.Timestamptz(6)
+  deleted_at     DateTime? @db.Timestamptz(6)
+  ticker         String?   @db.VarChar(100)
+  team_address   String?   @db.VarChar(100)
+  quota          Decimal?  @db.Decimal
+  plaintext_hash String?   @db.VarChar(100)
+  base64_encrypt String?   @db.VarChar(500)
+
+  @@index([deleted_at], map: "idx_team_quota_record_baks_deleted_at")
+}
+
+model team_quota_records {
+  id             BigInt    @id @default(autoincrement())
+  created_at     DateTime? @db.Timestamptz(6)
+  updated_at     DateTime? @db.Timestamptz(6)
+  deleted_at     DateTime? @db.Timestamptz(6)
+  ticker         String?   @db.VarChar(100)
+  team_address   String?   @db.VarChar(100)
+  quota          Decimal?  @db.Decimal
+  plaintext_hash String?   @db.VarChar(100)
+  base64_encrypt String?   @db.VarChar(500)
+
+  @@unique([ticker, team_address], map: "uidx_TeamQuotaRecord")
+  @@index([deleted_at], map: "idx_team_quota_records_deleted_at")
+}
+
+model telegram_binds {
+  id          BigInt    @id @default(autoincrement())
+  created_at  DateTime? @db.Timestamptz(6)
+  updated_at  DateTime? @db.Timestamptz(6)
+  deleted_at  DateTime? @db.Timestamptz(6)
+  address     String?   @unique(map: "uidx_TelegramBind_Address") @db.VarChar(100)
+  telegram_id BigInt?   @unique(map: "uidx_TelegramBind_TelegramId")
+  first_name  String?   @db.VarChar(30)
+  last_name   String?   @db.VarChar(30)
+  username    String?   @db.VarChar(80)
+  photo_url   String?   @db.VarChar(200)
+  auth_date   BigInt?
+  hash        String?   @db.VarChar(100)
+
+  @@index([deleted_at], map: "idx_telegram_binds_deleted_at")
+}
+
+model telegram_data_records {
+  id          BigInt    @id @default(autoincrement())
+  created_at  DateTime? @db.Timestamptz(6)
+  updated_at  DateTime? @db.Timestamptz(6)
+  deleted_at  DateTime? @db.Timestamptz(6)
+  address     String?   @db.VarChar(100)
+  telegram_id BigInt?
+  first_name  String?   @db.VarChar(30)
+  last_name   String?   @db.VarChar(30)
+  username    String?   @db.VarChar(80)
+  photo_url   String?   @db.VarChar(200)
+  auth_date   BigInt?
+  hash        String?   @unique(map: "uidx_TelegramDataRecord") @db.VarChar(100)
+  data        String?   @db.VarChar(200)
+  nonce       String?   @db.VarChar(100)
+
+  @@index([deleted_at], map: "idx_telegram_data_records_deleted_at")
+}
+
+model telegram_groups {
+  id          BigInt    @id @default(autoincrement())
+  created_at  DateTime? @db.Timestamptz(6)
+  updated_at  DateTime? @db.Timestamptz(6)
+  deleted_at  DateTime? @db.Timestamptz(6)
+  telegram_id Decimal?  @db.Decimal
+  group_id    Decimal?  @db.Decimal
+
+  @@unique([telegram_id, group_id], map: "uidx_TelegramGroup")
+  @@index([deleted_at], map: "idx_telegram_groups_deleted_at")
+}
+
+model token_baks {
+  id                           BigInt    @id @default(autoincrement())
+  created_at                   DateTime? @db.Timestamptz(6)
+  updated_at                   DateTime? @db.Timestamptz(6)
+  deleted_at                   DateTime? @db.Timestamptz(6)
+  token_name                   String?   @db.VarChar(100)
+  ticker                       String?   @db.VarChar(100)
+  icon                         String?   @db.VarChar(100)
+  description                  String?   @db.VarChar(2048)
+  pre_launch_duration          String?   @db.VarChar(30)
+  pre_market_acquisition       Decimal?  @db.Decimal
+  create_meme_date             DateTime? @db.Timestamptz(6)
+  ido_date                     DateTime? @db.Timestamptz(6)
+  launch_date                  DateTime? @db.Timestamptz(6)
+  address                      String?   @db.VarChar(100)
+  status                       String?   @db.VarChar(20)
+  contract_address             String?   @db.VarChar(100)
+  total_supply                 Decimal?  @db.Decimal
+  ido_price                    Decimal?  @db.Decimal
+  creator_allocation           Decimal?  @db.Decimal
+  ido_allocation               Decimal?  @db.Decimal
+  lp_allocation                Decimal?  @db.Decimal
+  airdrop_allocation           Decimal?  @db.Decimal
+  platform_allocation          Decimal?  @db.Decimal
+  total_raised_count           Decimal?  @db.Decimal
+  lp_contract_address          String?   @db.VarChar(100)
+  lp_lock                      Boolean?  @default(false)
+  stage_one_claim              Boolean?  @default(false)
+  stage_two_claim              Boolean?  @default(false)
+  stage_one_claim_time         DateTime? @db.Timestamptz(6)
+  ido_end_flag                 Boolean?  @default(false)
+  generate_whitelist           Boolean?  @default(false)
+  liquidity                    Decimal?  @db.Decimal
+  chain                        String?   @default("Ethereum") @db.VarChar(100)
+  transction_id                String?   @db.VarChar(200)
+  created                      Boolean?  @default(true)
+  program_id                   String?   @db.VarChar(100)
+  twitter_score                Decimal?  @db.Decimal
+  twitter_score_year_month_day String?   @db.VarChar(100)
+  mint_auth_disable            Boolean?  @default(false)
+  pay_tx_hash                  String?   @db.VarChar(200)
+  lp_time                      DateTime? @db.Timestamptz(6)
+  memoo_time_stamp_val         BigInt?   @default(0)
+  cal_score                    Boolean?  @default(false)
+  burnt                        Boolean?  @default(false)
+  black_list                   Boolean?  @default(false)
+  burnt_count                  Decimal?  @db.Decimal
+  platform_address             String?   @db.VarChar(200)
+  create_token_time            DateTime? @db.Timestamptz(6)
+  refresh_create_time          DateTime? @db.Timestamptz(6)
+
+  @@index([deleted_at], map: "idx_token_baks_deleted_at")
+}
+
+model token_day_vol_fees {
+  id                  BigInt    @id @default(autoincrement())
+  created_at          DateTime? @db.Timestamptz(6)
+  updated_at          DateTime? @db.Timestamptz(6)
+  deleted_at          DateTime? @db.Timestamptz(6)
+  user_address        String?   @db.VarChar(100)
+  day                 Decimal?  @db.Decimal
+  contract_address    String?   @db.VarChar(100)
+  lp_contract_address String?   @db.VarChar(100)
+  nft_mint            String?   @db.VarChar(100)
+  tx_hash             String?   @db.VarChar(200)
+  fee                 Decimal?  @db.Decimal(32, 16)
+  user_fee            Decimal?  @db.Decimal(32, 16)
+
+  @@unique([user_address, day, contract_address], map: "uidx_TokenDayVolFee_ticker")
+  @@index([deleted_at], map: "idx_token_day_vol_fees_deleted_at")
+}
+
+model token_locks {
+  id                 BigInt    @id @default(autoincrement())
+  created_at         DateTime? @db.Timestamptz(6)
+  updated_at         DateTime? @db.Timestamptz(6)
+  deleted_at         DateTime? @db.Timestamptz(6)
+  contract_address   String?   @db.VarChar(100)
+  ticker             String?   @unique(map: "uidx_TokenLockticker") @db.VarChar(100)
+  address            String?   @db.VarChar(100)
+  meme_id            String?   @db.VarChar(200)
+  creator_allocation Decimal?  @db.Decimal
+  chain              String?   @default("Ethereum") @db.VarChar(100)
+  price              Decimal?  @default(0) @db.Decimal
+
+  @@index([deleted_at], map: "idx_token_locks_deleted_at")
+}
+
+model token_memoo_score_statics {
+  id                         BigInt    @id @default(autoincrement())
+  created_at                 DateTime? @db.Timestamptz(6)
+  updated_at                 DateTime? @db.Timestamptz(6)
+  deleted_at                 DateTime? @db.Timestamptz(6)
+  contract_address           String?   @unique(map: "uidx_TokenMemooScoreStatic") @db.VarChar(100)
+  total_score                BigInt?   @default(0)
+  memoo_score                BigInt?   @default(0)
+  memescoresocialinfo        BigInt?   @default(0)
+  memescorecommunitysize     BigInt?   @default(0)
+  memescorecommunityactivity BigInt?   @default(0)
+  memescorecreatoractivity   BigInt?   @default(0)
+  memescoretopup             BigInt?   @default(0)
+  memescoretotalraised       BigInt?   @default(0)
+  memescoremarketcap         BigInt?   @default(0)
+  memescoreliquidity         BigInt?   @default(0)
+  memescoreholders           BigInt?   @default(0)
+  memescoretradingvolume     BigInt?   @default(0)
+  memescoreyappower7dath     BigInt?   @default(0)
+  day                        BigInt?   @default(0)
+
+  @@index([deleted_at], map: "idx_token_memoo_score_statics_deleted_at")
+}
+
+model token_refunds {
+  id                           BigInt    @id @default(autoincrement())
+  created_at                   DateTime? @db.Timestamptz(6)
+  updated_at                   DateTime? @db.Timestamptz(6)
+  deleted_at                   DateTime? @db.Timestamptz(6)
+  token_name                   String?   @db.VarChar(100)
+  ticker                       String?   @db.VarChar(100)
+  icon                         String?   @db.VarChar(100)
+  description                  String?   @db.VarChar(2048)
+  pre_launch_duration          String?   @db.VarChar(30)
+  pre_market_acquisition       Decimal?  @db.Decimal
+  create_meme_date             DateTime? @db.Timestamptz(6)
+  ido_date                     DateTime? @db.Timestamptz(6)
+  launch_date                  DateTime? @db.Timestamptz(6)
+  address                      String?   @db.VarChar(100)
+  status                       String?   @db.VarChar(20)
+  contract_address             String?   @db.VarChar(100)
+  total_supply                 Decimal?  @db.Decimal
+  ido_price                    Decimal?  @db.Decimal
+  creator_allocation           Decimal?  @db.Decimal
+  ido_allocation               Decimal?  @db.Decimal
+  lp_allocation                Decimal?  @db.Decimal
+  airdrop_allocation           Decimal?  @db.Decimal
+  platform_allocation          Decimal?  @db.Decimal
+  total_raised_count           Decimal?  @db.Decimal
+  lp_contract_address          String?   @db.VarChar(100)
+  lp_lock                      Boolean?  @default(false)
+  stage_one_claim              Boolean?  @default(false)
+  stage_two_claim              Boolean?  @default(false)
+  stage_one_claim_time         DateTime? @db.Timestamptz(6)
+  ido_end_flag                 Boolean?  @default(false)
+  generate_whitelist           Boolean?  @default(false)
+  liquidity                    Decimal?  @db.Decimal
+  chain                        String?   @default("Ethereum") @db.VarChar(100)
+  transction_id                String?   @db.VarChar(200)
+  created                      Boolean?  @default(true)
+  program_id                   String?   @db.VarChar(100)
+  twitter_score                Decimal?  @db.Decimal
+  twitter_score_year_month_day String?   @db.VarChar(100)
+  mint_auth_disable            Boolean?  @default(false)
+  pay_tx_hash                  String?   @db.VarChar(200)
+  lp_time                      DateTime? @db.Timestamptz(6)
+  memoo_time_stamp_val         BigInt?   @default(0)
+  cal_score                    Boolean?  @default(false)
+  burnt                        Boolean?  @default(false)
+  black_list                   Boolean?  @default(false)
+  burnt_count                  Decimal?  @db.Decimal
+  platform_address             String?   @db.VarChar(200)
+  create_token_time            DateTime? @db.Timestamptz(6)
+  refresh_create_time          DateTime? @db.Timestamptz(6)
+  project_id                   Decimal?  @db.Decimal
+  protocol_type                String?   @db.VarChar(20)
+  market_cap                   Decimal?  @db.Decimal
+
+  @@index([deleted_at], map: "idx_token_refunds_deleted_at")
+}
+
+model token_statics {
+  id                   BigInt    @id @default(autoincrement())
+  created_at           DateTime? @db.Timestamptz(6)
+  updated_at           DateTime? @db.Timestamptz(6)
+  deleted_at           DateTime? @db.Timestamptz(6)
+  contract_address     String?   @unique(map: "uidx_TokenStatic") @db.VarChar(100)
+  top_ten_hoder        Decimal?  @db.Decimal
+  burnt_progress       Decimal?  @db.Decimal
+  time_stamp_val       BigInt?
+  burnt_time_stamp_val BigInt?
+  liquidity            Decimal?  @default(0) @db.Decimal
+  volume24_h           Decimal?  @default(0) @db.Decimal
+  volume6_h            Decimal?  @default(0) @db.Decimal
+  volume1_h            Decimal?  @default(0) @db.Decimal
+  holders              BigInt?   @default(0)
+  followers            BigInt?   @default(0)
+  creator_percentage   Decimal?  @db.Decimal
+  hodl                 Decimal?  @db.Decimal
+  unclaimed            Decimal?  @db.Decimal
+  bought               Decimal?  @db.Decimal
+  sold                 Decimal?  @db.Decimal
+  sold_all             Boolean?  @default(false)
+  imo_numbers          BigInt?   @default(0)
+  total_score          BigInt?   @default(0)
+  memoo_score          BigInt?   @default(0)
+  pv_count             BigInt?   @default(0)
+  transactions         BigInt?   @default(0)
+  day2holders          BigInt?   @default(0)
+  day3holders          BigInt?   @default(0)
+  day4holders          BigInt?   @default(0)
+  day5holders          BigInt?   @default(0)
+  day6holders          BigInt?   @default(0)
+  day7holders          BigInt?   @default(0)
+  marketcap            Decimal?  @default(0) @db.Decimal
+  day2marketcap        Decimal?  @default(0) @db.Decimal
+  day3marketcap        Decimal?  @default(0) @db.Decimal
+  day4marketcap        Decimal?  @default(0) @db.Decimal
+  day5marketcap        Decimal?  @default(0) @db.Decimal
+  day6marketcap        Decimal?  @default(0) @db.Decimal
+  day7marketcap        Decimal?  @default(0) @db.Decimal
+  day                  BigInt?   @default(0)
+  yap_power_ath        Decimal?  @db.Decimal
+  marketcap_day        BigInt?   @default(0)
+
+  @@index([deleted_at], map: "idx_token_statics_deleted_at")
+}
+
+model tokens {
+  id                           BigInt    @id @default(autoincrement())
+  created_at                   DateTime? @db.Timestamptz(6)
+  updated_at                   DateTime? @db.Timestamptz(6)
+  deleted_at                   DateTime? @db.Timestamptz(6)
+  token_name                   String?   @db.VarChar(100)
+  ticker                       String?   @unique(map: "uidx_ticker") @db.VarChar(100)
+  icon                         String?   @db.VarChar(100)
+  description                  String?   @db.VarChar(2048)
+  pre_launch_duration          String?   @db.VarChar(30)
+  pre_market_acquisition       Decimal?  @db.Decimal
+  create_meme_date             DateTime? @db.Timestamptz(6)
+  ido_date                     DateTime? @db.Timestamptz(6)
+  launch_date                  DateTime? @db.Timestamptz(6)
+  address                      String?   @db.VarChar(100)
+  status                       String?   @db.VarChar(20)
+  contract_address             String?   @unique(map: "uidx_Token_ContractAddress") @db.VarChar(100)
+  total_supply                 Decimal?  @db.Decimal
+  ido_price                    Decimal?  @db.Decimal
+  creator_allocation           Decimal?  @db.Decimal
+  ido_allocation               Decimal?  @db.Decimal
+  lp_allocation                Decimal?  @db.Decimal
+  airdrop_allocation           Decimal?  @db.Decimal
+  platform_allocation          Decimal?  @db.Decimal
+  total_raised_count           Decimal?  @db.Decimal
+  lp_contract_address          String?   @db.VarChar(100)
+  lp_lock                      Boolean?  @default(false)
+  stage_one_claim              Boolean?  @default(false)
+  stage_two_claim              Boolean?  @default(false)
+  stage_one_claim_time         DateTime? @db.Timestamptz(6)
+  stage_two_claim_time         DateTime? @db.Timestamptz(6)
+  ido_end_flag                 Boolean?  @default(false)
+  generate_whitelist           Boolean?  @default(false)
+  liquidity                    Decimal?  @db.Decimal
+  chain                        String?   @default("Ethereum") @db.VarChar(100)
+  transction_id                String?   @db.VarChar(200)
+  created                      Boolean?  @default(true)
+  program_id                   String?   @db.VarChar(100)
+  twitter_score                Decimal?  @db.Decimal
+  twitter_score_year_month_day String?   @db.VarChar(100)
+  mint_auth_disable            Boolean?  @default(false)
+  pay_tx_hash                  String?   @db.VarChar(200)
+  lp_time                      DateTime? @db.Timestamptz(6)
+  memoo_time_stamp_val         BigInt?   @default(0)
+  cal_score                    Boolean?  @default(false)
+  burnt                        Boolean?  @default(false)
+  black_list                   Boolean?  @default(false)
+  burnt_count                  Decimal?  @db.Decimal
+  platform_address             String?   @db.VarChar(200)
+  create_token_time            DateTime? @db.Timestamptz(6)
+  refresh_create_time          DateTime? @db.Timestamptz(6)
+  ready_flag                   Boolean?  @default(false)
+  created_result               Boolean?  @default(false)
+  max_memoo_score              Decimal?  @default(0) @db.Decimal
+  current_handle_tx_hash       String?   @db.VarChar(200)
+  lookup_table                 String?   @db.VarChar(200)
+  re_fund                      Boolean?  @default(false)
+  alert_imo                    Boolean?  @default(false)
+  alert_airdrop                Boolean?  @default(false)
+  overall_rank                 BigInt?   @default(7)
+  overall_rank_time            BigInt?   @default(0)
+  fee_nft_mint                 String?   @db.VarChar(100)
+  fee_nft_mint_pri_key         String?   @db.VarChar(200)
+  nft_locked_liquidity         String?   @db.VarChar(100)
+  airdrop_burnt                Boolean?  @default(false)
+  airdrop_burnt_tx_hash        String?   @db.VarChar(200)
+  airdrop_burnt_time           DateTime? @db.Timestamptz(6)
+  protocol_type                String?   @db.VarChar(20)
+  market_cap                   Decimal?  @db.Decimal
+  lp_switch                    Decimal?  @default(0) @db.Decimal
+  participate_imo_balance      Decimal?  @db.Decimal
+  first_lp_time                DateTime? @db.Timestamptz(6)
+  lookup_table_time            DateTime? @db.Timestamptz(6)
+  airdrop_burn_times           BigInt?   @default(0)
+  create_claim_limit1_times    BigInt?   @default(0)
+  create_claim_limit2_times    BigInt?   @default(0)
+  create_meme_times            BigInt?   @default(0)
+  create_meme_pool_times       BigInt?   @default(0)
+  set_refund_flag_times        BigInt?   @default(0)
+  create_lookup_times          BigInt?   @default(0)
+  refund_time                  DateTime? @db.Timestamptz(6)
+  slot                         BigInt?   @default(0)
+  share_create_fee_number      BigInt?   @default(0)
+  cal_yap_score_flag           Boolean?  @default(false)
+
+  @@index([address], map: "idx_Token_address")
+  @@index([token_name], map: "idx_Token_tokenname")
+  @@index([deleted_at], map: "idx_tokens_deleted_at")
+}
+
+model top_ten_holders {
+  id               BigInt    @id @default(autoincrement())
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  contract_address String?   @db.VarChar(200)
+  address          String?   @db.VarChar(100)
+  proportion       String?   @db.VarChar(40)
+
+  @@index([contract_address], map: "idx_TopTenHolder")
+  @@index([deleted_at], map: "idx_top_ten_holders_deleted_at")
+}
+
+model total_vol_fees {
+  id                      BigInt    @id @default(autoincrement())
+  created_at              DateTime? @db.Timestamptz(6)
+  updated_at              DateTime? @db.Timestamptz(6)
+  deleted_at              DateTime? @db.Timestamptz(6)
+  user_address            String?   @db.VarChar(100)
+  contract_address        String?   @db.VarChar(100)
+  total_sol_vol_fee       Decimal?  @db.Decimal(32, 16)
+  total_token_vol_fee     Decimal?  @db.Decimal(32, 16)
+  last_sol_vol_fee        Decimal?  @db.Decimal(32, 16)
+  last_token_vol_fee      Decimal?  @db.Decimal(32, 16)
+  user_sol_vol_fee        Decimal?  @db.Decimal(32, 16)
+  user_token_vol_fee      Decimal?  @db.Decimal(32, 16)
+  last_user_sol_vol_fee   Decimal?  @db.Decimal(32, 16)
+  last_user_token_vol_fee Decimal?  @db.Decimal(32, 16)
+
+  @@unique([user_address, contract_address], map: "uidx_TotalVolFee")
+  @@index([deleted_at], map: "idx_total_vol_fees_deleted_at")
+}
+
+model transction_done_records {
+  id         BigInt    @id @default(autoincrement())
+  created_at DateTime? @db.Timestamptz(6)
+  updated_at DateTime? @db.Timestamptz(6)
+  deleted_at DateTime? @db.Timestamptz(6)
+  tx_hash    String?   @unique(map: "udx_TransctionDoneRecord") @db.VarChar(200)
+
+  @@index([deleted_at], map: "idx_transction_done_records_deleted_at")
+}
+
+model transction_histories {
+  id               BigInt    @id @default(autoincrement())
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  contract_address String?   @db.VarChar(200)
+  address          String?   @db.VarChar(200)
+  from_address     String?   @db.VarChar(200)
+  to_address       String?   @db.VarChar(200)
+  tran_type        String?   @db.VarChar(20)
+  transaction_time Decimal?  @db.Decimal
+  sol_balance      Decimal?  @db.Decimal
+  meme_balance     Decimal?  @db.Decimal
+  tx_hash          String?   @db.VarChar(200)
+
+  @@index([contract_address], map: "idx_TransctionHistory_ContractAddress")
+  @@index([tx_hash], map: "idx_TransctionHistory_TxHash")
+  @@index([deleted_at], map: "idx_transction_histories_deleted_at")
+}
+
+model tt_bind_address_histories {
+  id           BigInt    @id @default(autoincrement())
+  created_at   DateTime? @db.Timestamptz(6)
+  updated_at   DateTime? @db.Timestamptz(6)
+  deleted_at   DateTime? @db.Timestamptz(6)
+  twitter      String?   @db.VarChar(100)
+  user_address String?   @db.VarChar(100)
+  email        String?   @db.VarChar(100)
+  access_token String?   @db.VarChar(100)
+
+  @@index([deleted_at], map: "idx_tt_bind_address_histories_deleted_at")
+  @@index([twitter], map: "idx_tt_bind_address_histories_twitter")
+}
+
+model tt_bind_addresses {
+  id           BigInt    @id @default(autoincrement())
+  created_at   DateTime? @db.Timestamptz(6)
+  updated_at   DateTime? @db.Timestamptz(6)
+  deleted_at   DateTime? @db.Timestamptz(6)
+  twitter      String?   @unique(map: "uidx_TtBindAddress") @db.VarChar(100)
+  user_address String?   @db.VarChar(100)
+  email        String?   @db.VarChar(100)
+  access_token String?   @db.VarChar(100)
+
+  @@index([deleted_at], map: "idx_tt_bind_addresses_deleted_at")
+}
+
+model twitter_bind_records {
+  id           BigInt    @id @default(autoincrement())
+  created_at   DateTime? @db.Timestamptz(6)
+  updated_at   DateTime? @db.Timestamptz(6)
+  deleted_at   DateTime? @db.Timestamptz(6)
+  twitter_id   String?   @db.VarChar(100)
+  twitter_name String?   @db.VarChar(100)
+  user_address String?   @unique(map: "uidx_TwitterBindRecord") @db.VarChar(100)
+
+  @@index([deleted_at], map: "idx_twitter_bind_records_deleted_at")
+}
+
+model twitter_recent_records {
+  id               BigInt    @id @default(autoincrement())
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  twitter_id       String?   @db.VarChar(100)
+  tweet_text       String?
+  retweet_count    Decimal?  @db.Decimal
+  reply_count      Decimal?  @db.Decimal
+  like_count       Decimal?  @db.Decimal
+  quote_count      Decimal?  @db.Decimal
+  author_id        String?   @db.VarChar(100)
+  tweet_created_at DateTime? @db.Timestamptz(6)
+  time_stamp_val   Decimal?  @db.Decimal
+  ticker           String?   @db.VarChar(100)
+  cal_flag         String?   @default("0") @db.VarChar(1)
+  one_day_flag     String?   @default("0") @db.VarChar(1)
+  token_id         Decimal?  @db.Decimal
+
+  @@unique([twitter_id, ticker, token_id], map: "uidx_TwitterRecentRecord_new")
+  @@index([deleted_at], map: "idx_twitter_recent_records_deleted_at")
+  @@index([author_id, time_stamp_val], map: "index_TwitterRecentRecord_AuthorId")
+  @@index([cal_flag], map: "index_TwitterRecentRecord_CalFlag")
+  @@index([one_day_flag], map: "index_TwitterRecentRecord_OneDayFlag")
+}
+
+model twitter_resource_allocations {
+  id                    BigInt    @id @default(autoincrement())
+  created_at            DateTime? @db.Timestamptz(6)
+  updated_at            DateTime? @db.Timestamptz(6)
+  deleted_at            DateTime? @db.Timestamptz(6)
+  user_address          String?   @unique(map: "uidx_TwitterResourceAllocation") @db.VarChar(100)
+  last_resource_pool_no Decimal?  @db.Decimal
+
+  @@index([deleted_at], map: "idx_twitter_resource_allocations_deleted_at")
+}
+
+model twitter_resource_pools {
+  id                  BigInt    @id @default(autoincrement())
+  created_at          DateTime? @db.Timestamptz(6)
+  updated_at          DateTime? @db.Timestamptz(6)
+  deleted_at          DateTime? @db.Timestamptz(6)
+  resource_pool_no    BigInt?   @unique(map: "uidx_ResourcePoolNo")
+  resource_pool_name  String?   @db.VarChar(30)
+  consumer_api_key    String?   @db.VarChar(100)
+  consumer_api_secret String?   @db.VarChar(100)
+  app_access_token    String?   @db.VarChar(100)
+  app_access_secret   String?   @db.VarChar(100)
+  app_client_id       String?   @db.VarChar(100)
+  app_client_secret   String?   @db.VarChar(100)
+  bearer_token        String?   @db.VarChar(150)
+  enable              Boolean?  @default(true)
+  backup_bearer_token String?   @db.VarChar(150)
+
+  @@index([deleted_at], map: "idx_twitter_resource_pools_deleted_at")
+}
+
+model twitter_user_day_tiers {
+  id            BigInt    @id @default(autoincrement())
+  created_at    DateTime? @db.Timestamptz(6)
+  updated_at    DateTime? @db.Timestamptz(6)
+  deleted_at    DateTime? @db.Timestamptz(6)
+  user_id       String?   @db.VarChar(100)
+  ticker        String?   @db.VarChar(100)
+  yap_power     Decimal?  @db.Decimal
+  yap_power_ath Decimal?  @db.Decimal
+  yaps          Decimal?  @db.Decimal
+  day_yaps      Decimal?  @default(0) @db.Decimal
+  yap_momentum  Decimal?  @default(0) @db.Decimal
+  follows       BigInt?   @default(0)
+  likes         BigInt?   @default(0)
+  tag_count     BigInt?   @default(0)
+  day           BigInt?   @default(0)
+
+  @@unique([user_id, ticker, day], map: "uidx_TwitterUserDayTier")
+  @@index([deleted_at], map: "idx_twitter_user_day_tiers_deleted_at")
+}
+
+model twitter_user_records {
+  id                BigInt    @id @default(autoincrement())
+  created_at        DateTime? @db.Timestamptz(6)
+  updated_at        DateTime? @db.Timestamptz(6)
+  deleted_at        DateTime? @db.Timestamptz(6)
+  user_id           String?   @unique(map: "uidx_TwitterUserRecord") @db.VarChar(100)
+  user_url          String?   @db.VarChar(200)
+  profile_image_url String?   @db.VarChar(200)
+  username          String?   @db.VarChar(50)
+  user_created_at   DateTime? @db.Timestamptz(6)
+  followers_count   Decimal?  @db.Decimal
+  following_count   Decimal?  @db.Decimal
+  tweet_count       Decimal?  @db.Decimal
+  listed_count      Decimal?  @db.Decimal
+  like_count        Decimal?  @db.Decimal
+  media_count       Decimal?  @db.Decimal
+  time_stamp_val    BigInt?   @default(0)
+
+  @@index([deleted_at], map: "idx_twitter_user_records_deleted_at")
+}
+
+model twitter_user_tier_histories {
+  id         BigInt    @id @default(autoincrement())
+  created_at DateTime? @db.Timestamptz(6)
+  updated_at DateTime? @db.Timestamptz(6)
+  deleted_at DateTime? @db.Timestamptz(6)
+  user_id    String?   @db.VarChar(100)
+  ticker     String?   @db.VarChar(100)
+  address    String?   @db.VarChar(100)
+  tag_count  BigInt?   @default(0)
+
+  @@unique([user_id, ticker, address], map: "uidx_TwitterUserTierHistory")
+  @@index([deleted_at], map: "idx_twitter_user_tier_histories_deleted_at")
+}
+
+model twitter_user_tiers {
+  id            BigInt    @id @default(autoincrement())
+  created_at    DateTime? @db.Timestamptz(6)
+  updated_at    DateTime? @db.Timestamptz(6)
+  deleted_at    DateTime? @db.Timestamptz(6)
+  user_id       String?   @db.VarChar(100)
+  ticker        String?   @db.VarChar(100)
+  yap_power     Decimal?  @db.Decimal
+  yap_power_ath Decimal?  @db.Decimal
+  yaps          Decimal?  @db.Decimal
+  day_yaps      Decimal?  @default(0) @db.Decimal
+  yap_momentum  Decimal?  @default(0) @db.Decimal
+  follows       BigInt?   @default(0)
+  likes         BigInt?   @default(0)
+  tag_count     BigInt?   @default(0)
+  day           BigInt?   @default(0)
+
+  @@unique([user_id, ticker], map: "uidx_TwitterUserTier")
+  @@index([deleted_at], map: "idx_twitter_user_tiers_deleted_at")
+}
+
+model uniswap_transction_records {
+  id           String    @id
+  created_at   DateTime? @db.Timestamptz(6)
+  updated_at   DateTime? @db.Timestamptz(6)
+  deleted_at   DateTime? @db.Timestamptz(6)
+  token0       String?   @db.VarChar(100)
+  timestamp    BigInt?
+  tx_count     Decimal?  @db.Decimal
+  pair_id      String?   @db.VarChar(100)
+  from         String?   @db.VarChar(100)
+  to           String?   @db.VarChar(100)
+  status       String?   @default("init") @db.VarChar(30)
+  block_number BigInt?
+
+  @@index([deleted_at], map: "idx_uniswap_transction_records_deleted_at")
+}
+
+model unlock_periods_configs {
+  id          BigInt    @id @default(autoincrement())
+  created_at  DateTime? @db.Timestamptz(6)
+  updated_at  DateTime? @db.Timestamptz(6)
+  deleted_at  DateTime? @db.Timestamptz(6)
+  index       BigInt?
+  period_type String?
+  timestamp   BigInt?
+  unlock_rate String?
+  value       String?
+  chain       String?   @default("Ethereum")
+
+  @@unique([index, chain], map: "uidx_UnlockPeriodsConfig_chain")
+  @@index([deleted_at], map: "idx_unlock_periods_configs_deleted_at")
+}
+
+model user_alert_msgs {
+  id               BigInt    @id @default(autoincrement())
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  address          String?   @db.VarChar(100)
+  alert_setting_id Decimal?  @db.Decimal
+  content          String?   @db.VarChar(200)
+  read             Boolean?  @default(false)
+
+  @@index([deleted_at], map: "idx_user_alert_msgs_deleted_at")
+  @@index([address], map: "indexUserAlertMsgAddress")
+}
+
+model user_alert_settings {
+  id              BigInt    @id @default(autoincrement())
+  created_at      DateTime? @db.Timestamptz(6)
+  updated_at      DateTime? @db.Timestamptz(6)
+  deleted_at      DateTime? @db.Timestamptz(6)
+  address         String?   @db.VarChar(100)
+  setting_options String?   @db.VarChar(100)
+  enable          Boolean?  @default(false)
+
+  @@unique([address, setting_options], map: "uidx_UserAlertSetting")
+  @@index([deleted_at], map: "idx_user_alert_settings_deleted_at")
+}
+
+model user_banners {
+  id                 BigInt    @id @default(autoincrement())
+  created_at         DateTime? @db.Timestamptz(6)
+  updated_at         DateTime? @db.Timestamptz(6)
+  deleted_at         DateTime? @db.Timestamptz(6)
+  user_address       String?   @db.VarChar(100)
+  profile_banner_url String?   @db.VarChar(100)
+
+  @@index([user_address], map: "idx_UserBanner_UserAddress")
+  @@index([deleted_at], map: "idx_user_banners_deleted_at")
+}
+
+model user_click_configs {
+  id          BigInt    @id @default(autoincrement())
+  created_at  DateTime? @db.Timestamptz(6)
+  updated_at  DateTime? @db.Timestamptz(6)
+  deleted_at  DateTime? @db.Timestamptz(6)
+  config_code String?   @unique(map: "uniIdx_UserClickConfig") @db.VarChar(100)
+  config_sort Decimal?  @db.Decimal
+
+  @@index([deleted_at], map: "idx_user_click_configs_deleted_at")
+}
+
+model user_click_records {
+  id           BigInt    @id @default(autoincrement())
+  created_at   DateTime? @db.Timestamptz(6)
+  updated_at   DateTime? @db.Timestamptz(6)
+  deleted_at   DateTime? @db.Timestamptz(6)
+  ticker       String?   @db.VarChar(100)
+  user_address String?   @db.VarChar(100)
+  bus_type     String?   @db.VarChar(20)
+  status       Boolean?  @default(true)
+
+  @@unique([ticker, user_address, bus_type], map: "uniIdx_UserClickRecord")
+  @@index([deleted_at], map: "idx_user_click_records_deleted_at")
+}
+
+model user_operate_lateral_records {
+  id                   BigInt    @id @default(autoincrement())
+  created_at           DateTime? @db.Timestamptz(6)
+  updated_at           DateTime? @db.Timestamptz(6)
+  deleted_at           DateTime? @db.Timestamptz(6)
+  contract_address     String?   @db.VarChar(100)
+  user_address         String?   @db.VarChar(100)
+  abandon              Boolean?  @default(false)
+  ido_claim            Boolean?  @default(false)
+  airdrop_claim        Boolean?  @default(false)
+  ido_buy              Boolean?  @default(false)
+  increase             Boolean?  @default(false)
+  re_fund              Boolean?  @default(false)
+  creator_claim        Boolean?  @default(false)
+  status_abandon       String?   @default("0") @db.VarChar(1)
+  status_ido_claim     String?   @default("0") @db.VarChar(1)
+  status_airdrop_claim String?   @default("0") @db.VarChar(1)
+  status_ido_buy       String?   @default("0") @db.VarChar(1)
+  status_increase      String?   @default("0") @db.VarChar(1)
+  status_re_fund       String?   @default("0") @db.VarChar(1)
+  status_creator_claim String?   @default("0") @db.VarChar(1)
+  period               String?   @default("0") @db.VarChar(20)
+
+  @@unique([contract_address, user_address], map: "uniIdx_UserOperateLateralRecord")
+  @@index([deleted_at], map: "idx_user_operate_lateral_records_deleted_at")
+}
+
+model user_operate_records {
+  id               BigInt    @id @default(autoincrement())
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  contract_address String?   @db.VarChar(100)
+  user_address     String?   @db.VarChar(100)
+  bus_type         String?   @db.VarChar(100)
+  tx_hash          String?   @unique(map: "uniIdx_UserOperateRecord") @db.VarChar(100)
+  status           String?   @default("2") @db.VarChar(20)
+  count            Decimal?  @default(0) @db.Decimal
+  period           String?   @default("0") @db.VarChar(20)
+
+  @@index([deleted_at], map: "idx_user_operate_records_deleted_at")
+}
+
+model user_score_histories {
+  id                    BigInt    @id @default(autoincrement())
+  created_at            DateTime? @db.Timestamptz(6)
+  updated_at            DateTime? @db.Timestamptz(6)
+  deleted_at            DateTime? @db.Timestamptz(6)
+  address               String?   @db.VarChar(100)
+  score                 Decimal?  @default(0) @db.Decimal
+  fixed_score           Decimal?  @default(0) @db.Decimal
+  invitation_score      Decimal?  @default(0) @db.Decimal
+  memoo_updated_score   Decimal?  @default(0) @db.Decimal
+  memoo_time_stamp_val  BigInt?   @default(0)
+  invitation_step_score Decimal?  @default(0) @db.Decimal
+  cal_flag              Boolean?  @default(false)
+
+  @@index([address], map: "idx_UserScoreHistory_address")
+  @@index([deleted_at], map: "idx_user_score_histories_deleted_at")
+}
+
+model user_scores {
+  id                    BigInt    @id @default(autoincrement())
+  created_at            DateTime? @db.Timestamptz(6)
+  updated_at            DateTime? @db.Timestamptz(6)
+  deleted_at            DateTime? @db.Timestamptz(6)
+  address               String?   @unique(map: "uniqueIndex_UserScore") @db.VarChar(100)
+  score                 Decimal?  @default(0) @db.Decimal
+  fixed_score           Decimal?  @default(0) @db.Decimal
+  invitation_score      Decimal?  @default(0) @db.Decimal
+  memoo_updated_score   Decimal?  @default(0) @db.Decimal
+  memoo_time_stamp_val  BigInt?   @default(0)
+  invitation_step_score Decimal?  @default(0) @db.Decimal
+
+  @@index([deleted_at], map: "idx_user_scores_deleted_at")
+}
+
+model user_task_records {
+  id           BigInt    @id @default(autoincrement())
+  created_at   DateTime? @db.Timestamptz(6)
+  updated_at   DateTime? @db.Timestamptz(6)
+  deleted_at   DateTime? @db.Timestamptz(6)
+  user_address String?   @db.VarChar(100)
+  task_code    String?   @db.VarChar(100)
+  task_finish  Boolean?  @default(false)
+
+  @@unique([user_address, task_code], map: "uidx_UserOperationRecord")
+  @@index([deleted_at], map: "idx_user_task_records_deleted_at")
+}
+
+model users {
+  id                         BigInt    @id @default(autoincrement())
+  created_at                 DateTime? @db.Timestamptz(6)
+  updated_at                 DateTime? @db.Timestamptz(6)
+  deleted_at                 DateTime? @db.Timestamptz(6)
+  user_name                  String?   @db.VarChar(100)
+  user_bio                   String?
+  address                    String?   @unique(map: "uidx_user_Address") @db.VarChar(100)
+  twitter                    String?   @db.VarChar(100)
+  website                    String?   @db.VarChar(100)
+  telegram                   String?   @db.VarChar(100)
+  profile_image              String?   @db.VarChar(100)
+  join_memoo_tg              Boolean?  @default(false)
+  join_memoo_tg_refresh_time DateTime? @db.Timestamptz(6)
+  user_id                    String?   @unique(map: "uidx_user_UserId") @db.VarChar(20)
+
+  @@index([deleted_at], map: "idx_users_deleted_at")
+}
+
+model wait_for_pay_delete_records {
+  id                BigInt    @id @default(autoincrement())
+  created_at        DateTime? @db.Timestamptz(6)
+  updated_at        DateTime? @db.Timestamptz(6)
+  deleted_at        DateTime? @db.Timestamptz(6)
+  token_name        String?   @db.VarChar(100)
+  ticker            String?   @db.VarChar(100)
+  address           String?   @db.VarChar(100)
+  status            String?   @db.VarChar(20)
+  created_ticker_at DateTime? @db.Timestamptz(6)
+
+  @@index([deleted_at], map: "idx_wait_for_pay_delete_records_deleted_at")
+}
+
+model whitelist_register_records {
+  id           BigInt    @id @default(autoincrement())
+  created_at   DateTime? @db.Timestamptz(6)
+  updated_at   DateTime? @db.Timestamptz(6)
+  deleted_at   DateTime? @db.Timestamptz(6)
+  address      String?   @unique(map: "uidx_WhitelistRegisterAddress") @db.VarChar(100)
+  email        String?   @db.VarChar(100)
+  twitter_id   String?   @db.VarChar(50)
+  notify_type  String?   @db.VarChar(20)
+  follow_amout Decimal?  @db.Decimal
+  youtube_url  String?   @db.VarChar(200)
+  user_type    String?   @db.VarChar(20)
+  verification Boolean?  @default(false)
+
+  @@index([deleted_at], map: "idx_whitelist_register_records_deleted_at")
+}
+
+model whitelists {
+  id           BigInt    @id @default(autoincrement())
+  created_at   DateTime? @db.Timestamptz(6)
+  updated_at   DateTime? @db.Timestamptz(6)
+  deleted_at   DateTime? @db.Timestamptz(6)
+  project_name String?   @db.VarChar(100)
+  eth_address  String?   @db.VarChar(100)
+  public_key   String?   @db.VarChar(100)
+  count        BigInt?
+  status       Boolean?  @default(false)
+
+  @@unique([project_name, eth_address], map: "uidx_ProjectName_EthAddress")
+  @@index([deleted_at], map: "idx_whitelists_deleted_at")
+}
+
+model yap_scores {
+  id                   BigInt    @id @default(autoincrement())
+  created_at           DateTime? @db.Timestamptz(6)
+  updated_at           DateTime? @db.Timestamptz(6)
+  deleted_at           DateTime? @db.Timestamptz(6)
+  tt_username          String?   @db.VarChar(100)
+  tt_user_id           String?   @db.VarChar(100)
+  four_weeks_score     Decimal?  @default(0) @db.Decimal
+  three_weeks_score    Decimal?  @default(0) @db.Decimal
+  two_weeks_score      Decimal?  @default(0) @db.Decimal
+  score                Decimal?  @default(0) @db.Decimal
+  four_weeks_rank_num  Decimal?  @default(0) @db.Decimal
+  three_weeks_rank_num Decimal?  @default(0) @db.Decimal
+  two_weeks_rank_num   Decimal?  @default(0) @db.Decimal
+  rank_num             Decimal?  @default(0) @db.Decimal
+  record_date          DateTime? @db.Timestamptz(6)
+
+  @@unique([tt_username, tt_user_id], map: "uniqueIndexYapScore")
+  @@index([deleted_at], map: "idx_yap_scores_deleted_at")
 }
